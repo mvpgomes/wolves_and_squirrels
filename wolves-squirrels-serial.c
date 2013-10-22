@@ -76,6 +76,25 @@ int select_direction(int row, int column, int p){
   int cell = c % p;
   return cell;
 }
+/* detect_borders(int row, int column): function that detects if the position is a border. */
+int detect_border(int row, int column){
+  if(row == 0 && column == 0)
+    return /* UP_LEFT_CORNER */;
+  if(row == 0 && column == side_size)
+    return /* BOTTOM_RIGTH_CORNER*/;
+  if(row == side_size && column == 0)
+    return /* BOTTOM_LEFT_CORNER*/;
+  if(row == side_size && column == side_size)
+    return /* BOTTOM_RIGTH_CORNER*/;
+  if(row > 0 && row < side_size && column == 0)
+    return /* LEFT_BORDER*/;
+  if(row == 0 && column > 0 && column < side_size)
+    return /* TOP_BORDER*/;
+  if(row > 0 && row < side_size && column == side_size)
+    return /* RIGTH_BORDER*/;
+  if(row == side_size && column > 0 && column < side_size)
+    return /* BOTTOM_BORDER*/;
+}
 /* compute_wolf_moviment(int row, int column): function responsible to find the possible moviments for the wolf. */
 int* compute_wolf_moviment(int row, int column){
   int i= 0;
