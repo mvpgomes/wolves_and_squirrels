@@ -3,6 +3,10 @@
 
 /* Constants */
 #define EMPTY 'e'
+#define UP     0
+#define RIGHT  1 
+#define DOWN   2
+#define LEFT   3
 
 /* Global variables */
 int wolf_breeding_period;
@@ -73,54 +77,46 @@ int select_direction(int row, int column, int p){
   return cell;
 }
 /* compute_wolf_moviment(int row, int column): function responsible to find the possible moviments for the wolf. */
-struct position* compute_wolf_moviment(int row, int column){
+int* compute_wolf_moviment(int row, int column){
   int i= 0;
-  struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
+  int *array = (int  *)malloc(sizeof(int) * 4);
   
   if(world[row-1][column].type == 'e'  || world[row-1][column].type == 's'){
-    array[i].row = row-1;
-    array[i].column = column;
+    array[i] = UP;
     i++;
   }
   if(world[row][column+1].type == 'e' || world[row][column+1].type == 's'){
-    array[i].row = row;
-    array[i].column = column+1;
+    array[i] = RIGHT;
     i++;
   }
   if(world[row+1][column].type == 'e' || world[row+1][column].type == 's'){
-    array[i].row = row+1;
-    array[i].column = column;
+    array[i] = DOWN;
     i++;
   }
   if(world[row][column-1].type == 'e' || world[row][column-1].type == 's'){
-    array[i].row = row;
-    array[i].column = column-1;
+    array[i] = LEFT;
   }
   return array;
 }
 /* compute_squirrel_moviment(int row, int column): function responsible to find the possible moviments for the squirrel. */
-struct position* compute_squirrel_moviment(int row, int column){
+int* compute_squirrel_moviment(int row, int column){
   int i= 0;
-  struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
+  int *array = (int *)malloc(sizeof(int) * 4);
   
   if(world[row-1][column].type == 'e' || world[row-1][column].type == 't'){
-    array[i].row = row-1;
-    array[i].column = column;
+    array[i] = UP;
     i++;
   }
   if(world[row][column+1].type == 'e' || world[row][column+1].type == 't'){
-    array[i].row = row;
-    array[i].column = column+1;
+    array[i] = RIGHT;
     i++;
   }
   if(world[row+1][column].type == 'e' || world[row+1][column].type == 't'){
-    array[i].row = row+1;
-    array[i].column = column;
+    array[i] = DOWN;
     i++;
   }
   if(world[row][column-1].type == 'e' || world[row][column-1].type == 't'){
-    array[i].row = row;
-    array[i].column = column-1;
+    array[i] = LEFT;
   }
   return array;
 }
