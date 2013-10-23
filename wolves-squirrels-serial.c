@@ -3,10 +3,14 @@
 
 /* Constants */
 #define EMPTY 'e'
-#define UP     0
-#define RIGHT  1 
-#define DOWN   2
-#define LEFT   3
+#define TOP_LEFT_CORNER 1
+#define TOP_RIGHT_CORNER 2             
+#define BOTTOM_LEFT_CORNER 3
+#define BOTTOM_RIGHT_CORNER 4 
+#define LEFT_BORDER 5
+#define TOP_BORDER 6
+#define RIGHT_BORDER 7
+#define BOTTOM_BORDER 8
 
 /* Global variables */
 int wolf_breeding_period;
@@ -76,66 +80,70 @@ int select_direction(int row, int column, int p){
   int cell = c % p;
   return cell;
 }
-/* detect_borders(int row, int column): function that detects if the position is a border. */
-int detect_border(int row, int column){
-  if(row == 0 && column == 0)
-    return /* UP_LEFT_CORNER */;
-  if(row == 0 && column == side_size)
-    return /* BOTTOM_RIGTH_CORNER*/;
-  if(row == side_size && column == 0)
-    return /* BOTTOM_LEFT_CORNER*/;
-  if(row == side_size && column == side_size)
-    return /* BOTTOM_RIGTH_CORNER*/;
-  if(row > 0 && row < side_size && column == 0)
-    return /* LEFT_BORDER*/;
-  if(row == 0 && column > 0 && column < side_size)
-    return /* TOP_BORDER*/;
-  if(row > 0 && row < side_size && column == side_size)
-    return /* RIGTH_BORDER*/;
-  if(row == side_size && column > 0 && column < side_size)
-    return /* BOTTOM_BORDER*/;
+
+/* find_squirrels(int * array): function that receives an array with positions and return the squirrel position if that exists. */
+struct position * find_squirrels(struct position * array){
+  int i;
+  int size = 4;
+  struct position * position = (struct position *)malloc(sizeof(struct position));
+  for(i=0; i < size; i++){
+    int row = array[i].row;
+    int column = array[i].column;
+    if(world[row][column].type == 's')
+      position = &array[i];
+  }
+  return position;
 }
+
 /* compute_wolf_moviment(int row, int column): function responsible to find the possible moviments for the wolf. */
-int* compute_wolf_moviment(int row, int column){
+struct position* compute_wolf_moviment(int row, int column){
   int i= 0;
-  int *array = (int  *)malloc(sizeof(int) * 4);
+  struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
-  if(world[row-1][column].type == 'e'  || world[row-1][column].type == 's'){
-    array[i] = UP;
+  if(row > 0 && (world[row-1][column].type == 'e'  || world[row-1][column].type == 's')){
+    array[i].row = row-1;
+    array[i].column = column;
     i++;
   }
-  if(world[row][column+1].type == 'e' || world[row][column+1].type == 's'){
-    array[i] = RIGHT;
+  if(column < side_size && (world[row][column+1].type == 'e' || world[row][column+1].type == 's')){
+    array[i].row = row;
+    array[i].column = column+1;
     i++;
   }
-  if(world[row+1][column].type == 'e' || world[row+1][column].type == 's'){
-    array[i] = DOWN;
+  if(row < side_size && (world[row+1][column].type == 'e' || world[row+1][column].type == 's')){
+    array[i].row = row+1;
+    array[i].column = column;
     i++;
   }
-  if(world[row][column-1].type == 'e' || world[row][column-1].type == 's'){
-    array[i] = LEFT;
+  if(column > 0 && (world[row][column-1].type == 'e' || world[row][column-1].type == 's')){
+    array[i].row = row;
+    array[i].column = column-1;
   }
   return array;
 }
 /* compute_squirrel_moviment(int row, int column): function responsible to find the possible moviments for the squirrel. */
-int* compute_squirrel_moviment(int row, int column){
+struct position* compute_squirrel_moviment(int row, int column){
   int i= 0;
-  int *array = (int *)malloc(sizeof(int) * 4);
+  struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
-  if(world[row-1][column].type == 'e' || world[row-1][column].type == 't'){
-    array[i] = UP;
+  if(row > 0 && (world[row-1][column].type == 'e' || world[row-1][column].type == 't')){
+    array[i].row = row-1;
+    array[i].column = column;
     i++;
   }
-  if(world[row][column+1].type == 'e' || world[row][column+1].type == 't'){
-    array[i] = RIGHT;
+  if(column < side_size && (world[row][column+1].type == 'e' || world[row][column+1].type == 't')){
+    array[i].row = row;
+    array[i].column = column+1;
     i++;
   }
-  if(world[row+1][column].type == 'e' || world[row+1][column].type == 't'){
-    array[i] = DOWN;
+  if(row < side_size && (world[row+1][column].type == 'e' || world[row+1][column].type == 't')){
+    array[i].row = row+1;
+    array[i].column = column;
     i++;
   }
-  if(world[row][column-1].type == 'e' || world[row][column-1].type == 't'){
-    array[i] = LEFT;
+  if(column > 0 && (world[row][column-1].type == 'e' || world[row][column-1].type == 't')){
+    array[i].row = row;
+    array[i].column = column-1;
   }
   return array;
 }
