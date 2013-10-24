@@ -1,16 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Constants */
 #define EMPTY 'e'
-#define TOP_LEFT_CORNER 1
-#define TOP_RIGHT_CORNER 2             
-#define BOTTOM_LEFT_CORNER 3
-#define BOTTOM_RIGHT_CORNER 4 
-#define LEFT_BORDER 5
-#define TOP_BORDER 6
-#define RIGHT_BORDER 7
-#define BOTTOM_BORDER 8
+#define RED 0
+#define BLACK 1
 
 /* Global variables */
 int wolf_breeding_period;
@@ -28,25 +23,28 @@ struct world{
   char type;
   int breeding_period;
   int starvation_period;
-} **world;
+} *world;
 
-/* initialize_world(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
+struct world **rows; 
+
+/* initialize_rows(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
 void initialize_world(FILE *file){
   int i, j;
   // Initialize the 2-D grid.
   if( fscanf(file, "%d", &side_size) == 1){
-    world = (struct world **) malloc(side_size * sizeof(struct world *));
+    world = (struct world *) malloc(side_size * side_size * sizeof(struct world ));
+    rows = (struct world **) malloc(side_size * sizeof(struct world *));
     for(i=0; i<side_size; i++)
-      world[i] = (struct world *) malloc(side_size * sizeof(struct world));
+      rows[i] = &world[i*side_size];
   }
   // fill the 2-D grid of empty positions
   for(i=0; i<side_size; i++){
     for(j=0;j<side_size; j++){
-      world[i][j].type = EMPTY;
+      rows[i][j].type = EMPTY;
     }
   }
 }
-/* populate_world(FILE *file) : function responsible for populate the struct world according the input file. */
+/* populate_rows(FILE *file) : function responsible for populate the struct rows according the input file. */
 void populate_world(FILE *file){
   int i, size;
   int row, column;
@@ -55,19 +53,19 @@ void populate_world(FILE *file){
   while( fscanf(file, "%d %d %c", &row, &column, &type) == 3){
     switch(type){
     case 'i':
-      world[row][column].type = type;
+      rows[row][column].type = type;
       break;
     case 't':
-      world[row][column].type = type;
+      rows[row][column].type = type;
       break;
     case 's':
-      world[row][column].type = type;
-      world[row][column].breeding_period = squirrel_breeding_period;
+      rows[row][column].type = type;
+      rows[row][column].breeding_period = squirrel_breeding_period;
  break;
     case 'w':
-      world[row][column].type = type;
-      world[row][column].breeding_period = wolf_breeding_period;
-      world[row][column].starvation_period = wolf_starvation_period;
+      rows[row][column].type = type;
+      rows[row][column].breeding_period = wolf_breeding_period;
+      rows[row][column].starvation_period = wolf_starvation_period;
       break;
     }
   }
@@ -89,7 +87,7 @@ struct position * find_squirrels(struct position * array){
   for(i=0; i < size; i++){
     int row = array[i].row;
     int column = array[i].column;
-    if(world[row][column].type == 's')
+    if(rows[row][column].type == 's')
       position = &array[i];
   }
   return position;
@@ -100,22 +98,22 @@ struct position* compute_wolf_moviment(int row, int column){
   int i= 0;
   struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
-  if(row > 0 && (world[row-1][column].type == 'e'  || world[row-1][column].type == 's')){
+  if(row > 0 && (rows[row-1][column].type == 'e'  || rows[row-1][column].type == 's')){
     array[i].row = row-1;
     array[i].column = column;
     i++;
   }
-  if(column < side_size && (world[row][column+1].type == 'e' || world[row][column+1].type == 's')){
+  if(column < side_size && (rows[row][column+1].type == 'e' || rows[row][column+1].type == 's')){
     array[i].row = row;
     array[i].column = column+1;
     i++;
   }
-  if(row < side_size && (world[row+1][column].type == 'e' || world[row+1][column].type == 's')){
+  if(row < side_size && (rows[row+1][column].type == 'e' || rows[row+1][column].type == 's')){
     array[i].row = row+1;
     array[i].column = column;
     i++;
   }
-  if(column > 0 && (world[row][column-1].type == 'e' || world[row][column-1].type == 's')){
+  if(column > 0 && (rows[row][column-1].type == 'e' || rows[row][column-1].type == 's')){
     array[i].row = row;
     array[i].column = column-1;
   }
@@ -126,28 +124,52 @@ struct position* compute_squirrel_moviment(int row, int column){
   int i= 0;
   struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
-  if(row > 0 && (world[row-1][column].type == 'e' || world[row-1][column].type == 't')){
+  if(row > 0 && (rows[row-1][column].type == 'e' || rows[row-1][column].type == 't')){
     array[i].row = row-1;
     array[i].column = column;
     i++;
   }
-  if(column < side_size && (world[row][column+1].type == 'e' || world[row][column+1].type == 't')){
+  if(column < side_size && (rows[row][column+1].type == 'e' || rows[row][column+1].type == 't')){
     array[i].row = row;
     array[i].column = column+1;
     i++;
   }
-  if(row < side_size && (world[row+1][column].type == 'e' || world[row+1][column].type == 't')){
+  if(row < side_size && (rows[row+1][column].type == 'e' || rows[row+1][column].type == 't')){
     array[i].row = row+1;
     array[i].column = column;
     i++;
   }
-  if(column > 0 && (world[row][column-1].type == 'e' || world[row][column-1].type == 't')){
+  if(column > 0 && (rows[row][column-1].type == 'e' || rows[row][column-1].type == 't')){
     array[i].row = row;
     array[i].column = column-1;
   }
   return array;
 }
-/* print_world() : function that's print the actual state of the world*/
+/* process_squirrel(int row, int column, struct world **rows) */
+process_squirrel(int row, int column, struct world **rows) {
+}
+/* process_wolf(int row, int column, struct world **rows) */
+process_wolf(int row, int column, struct world **rows) {
+}
+/* process_sub_world(int redBlack)*/
+void process_sub_world(int redBlack){
+  int i,k;
+  struct world * copy;
+  memcpy(copy, world, sizeof(struct world) * side_size * side_size);
+  struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
+  for (i=0; i < side_size; i++) 
+    rows_copy[i] = &copy[i*side_size];
+
+  for(i=0; i<side_size; i++) {
+    for(k=(i+redBlack)%2; k<side_size; k+=2){
+      if(rows_copy[i][k].type == 'e' || rows_copy[i][k].type == 't' || rows_copy[i][k].type == 'i') continue;
+      else if(rows_copy[i][k].type == 's' || rows_copy[i][k].type == '$') process_squirrel(i, k, rows_copy);
+      else process_wolf(i, k, rows_copy);
+    }
+  }
+  memcpy(world, copy, sizeof(struct world) * side_size * side_size);
+}
+/* print_rows() : function that's print the actual state of the rows*/
 void print_world(){
   int i, j, k;
   
@@ -157,7 +179,7 @@ void print_world(){
   printf("\n");
   for(i=0;i<side_size;i++){
     for(j=0;j<side_size;j++){
-      printf("| %c ", world[i][j].type); 
+      printf("| %c ", rows[i][j].type); 
     }
     printf("|\n");
     for(k=0;k<side_size;k++){
@@ -169,7 +191,7 @@ void print_world(){
 /* main : function responsible for the main interaction of the program. */
 int main(int argc, char *argv[]){
   char *file_name;
-  int n_generations;
+  int n_generations,i;
   FILE *file;
   // Verifies the input parameters of the program and initializes the variables.
   if(argc == 6){
@@ -183,7 +205,7 @@ int main(int argc, char *argv[]){
     printf("Error! : Incorrect number of arguments.\n");
     exit(-1);
   }
-  // Open the input file and initialize the world.
+  // Open the input file and initialize the rows.
   file = fopen(file_name,"r");
   
   if(file == NULL){
@@ -195,7 +217,12 @@ int main(int argc, char *argv[]){
     populate_world(file);
     fclose(file);
   }
-  // prints the world
+
+  for (i=0; i<n_generations; i++) {
+    process_sub_world(RED);
+    process_sub_world(BLACK);
+  }
+  // prints the rows
   print_world();
   
   return 0;
