@@ -23,9 +23,7 @@ struct world{
   char type;
   int breeding_period;
   int starvation_period;
-} *world;
-
-struct world **rows; 
+} *world, **rows; 
 
 /* initialize_rows(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
 void initialize_world(FILE *file){
@@ -154,7 +152,7 @@ process_wolf(int row, int column, struct world **rows) {
 /* process_sub_world(int redBlack)*/
 void process_sub_world(int redBlack){
   int i,k;
-  struct world * copy;
+  struct world * copy = (struct world *)malloc( sizeof(struct world) * side_size * side_size);
   memcpy(copy, world, sizeof(struct world) * side_size * side_size);
   struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
   for (i=0; i < side_size; i++) 
