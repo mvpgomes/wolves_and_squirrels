@@ -70,6 +70,8 @@ void add_elem(int row, int column, struct list_pos* list)
   last->next = pos;
   list->last = pos;
 
+  list->num_elems++;
+
 }
 /* get_element(struct list_pos* list, int n) : returns the nth element in the list */
 struct position* get_element(struct list_pos* list, int n)
@@ -136,7 +138,7 @@ int select_direction(int row, int column, int p){
 }
 
 /* find_squirrels(struct list_pos* array, struct world **rows_copy): function that receives an array with positions and return the squirrel position if that exists. */
-struct list_pos* find_squirrels(struct list_pos* array) {
+struct list_pos* find_squirrels(struct list_pos* array, struct world **rows_copy) {
 	int i;
 	struct list_pos* list = (struct list_pos*)malloc(sizeof(struct list_pos));
 	list->first = NULL;
@@ -145,7 +147,7 @@ struct list_pos* find_squirrels(struct list_pos* array) {
 
 	for (i=0; i<array->num_elems; i++) {
 		struct position* pos = get_element(array, i);
-		if(rows[pos->row][pos->column].type == SQUIRREL) {
+		if(rows_copy[pos->row][pos->column].type == SQUIRREL) {
 			add_elem(pos->row, pos->column, list);
 		}
 	}
@@ -154,26 +156,26 @@ struct list_pos* find_squirrels(struct list_pos* array) {
 }
 
 /* alternate compute_wolf_movement(int row, int column): */
-struct list_pos* compute_wolf_movement(int row, int column)
+struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_copy)
 {
     struct list_pos* list = (struct list_pos*)malloc(sizeof(struct list_pos));
     list->first = NULL;
     list->last = NULL;
     list->num_elems = 0;
     
-    if(row > 0 && (rows[row-1][column].type == EMPTY || rows[row-1][column].type == SQUIRREL))
+    if(row > 0 && (rows_copy[row-1][column].type == EMPTY || rows_copy[row-1][column].type == SQUIRREL))
     {
         add_elem(row-1, column, list);
     }
-    if(column < (side_size - 1) && (rows[row][column+1].type == EMPTY || rows[row][column+1].type == SQUIRREL))
+    if(column < (side_size - 1) && (rows_copy[row][column+1].type == EMPTY || rows_copy[row][column+1].type == SQUIRREL))
     {
         add_elem(row, column+1, list);
     }
-    if(row < (side_size - 1) && (rows[row+1][column].type == EMPTY || rows[row+1][column].type == SQUIRREL))
+    if(row < (side_size - 1) && (rows_copy[row+1][column].type == EMPTY || rows_copy[row+1][column].type == SQUIRREL))
     {
         add_elem(row+1, column, list);
     }
-    if(column > 0 && (rows[row][column-1].type == EMPTY || rows[row][column-1].type == SQUIRREL))
+    if(column > 0 && (rows_copy[row][column-1].type == EMPTY || rows_copy[row][column-1].type == SQUIRREL))
     {
         add_elem(row, column-1, list);
     }
@@ -182,26 +184,26 @@ struct list_pos* compute_wolf_movement(int row, int column)
 }
 
 /* alternate compute_squirrel_movement(int row, int column): */
-struct list_pos* compute_squirrel_movement(int row, int column)
+struct list_pos* compute_squirrel_movement(int row, int column, struct world **rows_copy)
 {
   struct list_pos* list = (struct list_pos*)malloc(sizeof(struct list_pos));
   list->first = NULL;
   list->last = NULL;
   list->num_elems = 0;
 
-  if(row > 0 && (rows[row-1][column].type == EMPTY || rows[row-1][column].type == TREE))
+  if(row > 0 && (rows_copy[row-1][column].type == EMPTY || rows_copy[row-1][column].type == TREE))
     {
       add_elem(row-1, column, list);
     }
-  if(column < (side_size - 1) && (rows[row][column+1].type == EMPTY || rows[row][column+1].type == TREE))
+  if(column < (side_size - 1) && (rows_copy[row][column+1].type == EMPTY || rows_copy[row][column+1].type == TREE))
     {
       add_elem(row, column+1, list);
     }
-  if(row < (side_size - 1) && (rows[row+1][column].type == EMPTY || rows[row+1][column].type == TREE))
+  if(row < (side_size - 1) && (rows_copy[row+1][column].type == EMPTY || rows_copy[row+1][column].type == TREE))
     {
       add_elem(row+1, column, list);
     }
-  if(column > 0 && (rows[row][column-1].type == EMPTY || rows[row][column-1].type == TREE))
+  if(column > 0 && (rows_copy[row][column-1].type == EMPTY || rows_copy[row][column-1].type == TREE))
     {
       add_elem(row, column-1, list);
     }
@@ -224,7 +226,7 @@ void process_squirrel(int row, int column, struct world **rows_copy)
   struct position* next_pos;
   struct world aux_cell;
 
-  struct list_pos* list = compute_squirrel_movement(row, column);
+  struct list_pos* list = compute_squirrel_movement(row, column, rows_copy);
 
   if(list->num_elems == 0) {
   	return;
@@ -261,8 +263,8 @@ void process_wolf(int row, int column, struct world **rows_copy) {
     struct position* next_pos;
     struct world aux_cell;
     
-    struct list_pos* list = compute_wolf_movement(row, column);    
-    struct list_pos* squirrels = find_squirrels(list);
+    struct list_pos* list = compute_wolf_movement(row, column, rows_copy);
+    struct list_pos* squirrels = find_squirrels(list, rows_copy);
 
     if (list->num_elems == 0) {
     	return;
