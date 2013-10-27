@@ -3,7 +3,7 @@
 #include <string.h>
 
 /* Constants */
-#define EMPTY 'e'
+#define EMPTY ' '
 #define RED 0
 #define BLACK 1
 
@@ -14,16 +14,69 @@ int wolf_starvation_period;
 int side_size;
 
 /* Structure that represents a position in the grid. */
-struct position{
+struct position {
   int row;
   int column;
+  struct position* next;
 };
+/* Structure that represents the list of positions to where the animal can move */
+struct list_pos {
+  struct position* first;
+  struct position* last;
+  int num_elems;
+};
+
 /* Array of structures that represents a 2-D grid. */
 struct world{
   char type;
   int breeding_period;
   int starvation_period;
 } *world, **rows; 
+
+/* lists functions */
+/* new_list(int row, int column) : creates a new list with the first element */
+void new_list(int row, int column, struct list_pos* list)
+{
+  struct position* pos = (struct position*)malloc(sizeof(struct position));
+
+  pos->row = row;
+  pos->column = column;
+  pos->next = NULL;
+
+  list->first = pos;
+  list->last = pos;
+  list->num_elems = 1;
+
+}
+/* add_elem(int row, int column, struct list_pos* list) : adds a new element of the position type to the list */
+void add_elem(int row, int column, struct list_pos* list)
+{
+  if(list->num_elems == 0)
+    return new_list(row, column, list);
+
+  struct position* last;
+  struct position* pos = (struct position*)malloc(sizeof(struct position));
+
+  pos->row = row;
+  pos->column = column;
+  pos->next = NULL;
+
+  last = list->last;
+  last->next = pos;
+  list->last = pos;
+
+}
+/* get_element(struct list_pos* list, int n) : returns the nth element in the list */
+struct position* get_element(struct list_pos* list, int n)
+{
+  int i;
+  struct position* pos = list->first;
+
+  for(i = 0; i < n; i++)
+      pos = pos->next;
+
+  return pos;
+}
 
 /* initialize_rows(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
 void initialize_world(FILE *file){
@@ -59,7 +112,7 @@ void populate_world(FILE *file){
     case 's':
       rows[row][column].type = type;
       rows[row][column].breeding_period = squirrel_breeding_period;
- break;
+      break;
     case 'w':
       rows[row][column].type = type;
       rows[row][column].breeding_period = wolf_breeding_period;
@@ -96,58 +149,132 @@ struct position* compute_wolf_moviment(int row, int column){
   int i= 0;
   struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
-  if(row > 0 && (rows[row-1][column].type == 'e'  || rows[row-1][column].type == 's')){
+  if(row > 0 && (rows[row-1][column].type == EMPTY  || rows[row-1][column].type == 's')){
     array[i].row = row-1;
     array[i].column = column;
     i++;
   }
-  if(column < side_size && (rows[row][column+1].type == 'e' || rows[row][column+1].type == 's')){
+  if(column < side_size && (rows[row][column+1].type == EMPTY || rows[row][column+1].type == 's')){
     array[i].row = row;
     array[i].column = column+1;
     i++;
   }
-  if(row < side_size && (rows[row+1][column].type == 'e' || rows[row+1][column].type == 's')){
+  if(row < side_size && (rows[row+1][column].type == EMPTY || rows[row+1][column].type == 's')){
     array[i].row = row+1;
     array[i].column = column;
     i++;
   }
-  if(column > 0 && (rows[row][column-1].type == 'e' || rows[row][column-1].type == 's')){
+  if(column > 0 && (rows[row][column-1].type == EMPTY || rows[row][column-1].type == 's')){
     array[i].row = row;
     array[i].column = column-1;
   }
   return array;
 }
+
+
 /* compute_squirrel_moviment(int row, int column): function responsible to find the possible moviments for the squirrel. */
-struct position* compute_squirrel_moviment(int row, int column){
+/*
+struct position* compute_squirrel_movement(int row, int column){
   int i= 0;
   struct position* array = (struct position *)malloc(sizeof(struct position) * 4);
   
   if(row > 0 && (rows[row-1][column].type == 'e' || rows[row-1][column].type == 't')){
     array[i].row = row-1;
     array[i].column = column;
+    array[i].p = i;
     i++;
   }
-  if(column < side_size && (rows[row][column+1].type == 'e' || rows[row][column+1].type == 't')){
+  if(column < (side_size - 1) && (rows[row][column+1].type == 'e' || rows[row][column+1].type == 't')){
     array[i].row = row;
     array[i].column = column+1;
+    array[i].p = i;
     i++;
   }
-  if(row < side_size && (rows[row+1][column].type == 'e' || rows[row+1][column].type == 't')){
+  if(row < (side_size - 1) && (rows[row+1][column].type == 'e' || rows[row+1][column].type == 't')){
     array[i].row = row+1;
     array[i].column = column;
+    array[i].p = i;
     i++;
   }
   if(column > 0 && (rows[row][column-1].type == 'e' || rows[row][column-1].type == 't')){
     array[i].row = row;
     array[i].column = column-1;
+    array[i].p = i;
   }
   return array;
 }
-/* process_squirrel(int row, int column, struct world **rows) */
-process_squirrel(int row, int column, struct world **rows) {
+*/
+/* alternate compute_squirrel_movement(int row, int column): */
+struct list_pos* compute_squirrel_movement(int row, int column)
+{
+  struct list_pos* list = (struct list_pos*)malloc(sizeof(struct list_pos));
+  list->first = NULL;
+  list->last = NULL;
+  list->num_elems = 0;
+
+  if(row > 0 && (rows[row-1][column].type == EMPTY || rows[row-1][column].type == 't'))
+    {
+      add_elem(row-1, column, list);
+    }
+  if(column < (side_size - 1) && (rows[row][column+1].type == EMPTY || rows[row][column+1].type == 't'))
+    {
+      add_elem(row, column+1, list);
+    }
+  if(row < (side_size - 1) && (rows[row+1][column].type == EMPTY || rows[row+1][column].type == 't'))
+    {
+      add_elem(row+1, column, list);
+    }
+  if(column > 0 && (rows[row][column-1].type == EMPTY || rows[row][column-1].type == 't'))
+    {
+      add_elem(row, column-1, list);
+    }
+  
+  return list;
 }
+
+
+void exchange_cells(struct world **copy, int new_row, int new_column, int row, int column)
+{
+  struct world aux_cell;
+  aux_cell = copy[new_row][new_column];
+  copy[new_row][new_column] = copy[row][column];
+  copy[row][column] = aux_cell;
+}
+/* process_squirrel(int row, int column, struct world **rows) */
+void process_squirrel(int row, int column, struct world **rows_copy) 
+{
+  int p, next_row, next_column;
+  struct position* next_pos;
+  struct world aux_cell;
+
+  struct list_pos* list = compute_squirrel_movement(row, column);
+  p = select_direction(row, column, list->num_elems);
+
+  next_pos = get_element(list, p);
+  next_row = next_pos->row;
+  next_column = next_pos->column;
+
+  if(rows_copy[next_row][next_column].type == 't')
+    {
+      exchange_cells(rows_copy, next_row, next_column, row, column);
+      rows_copy[row][column].type = EMPTY;
+      rows_copy[next_row][next_column].type = '$';
+      return;
+    }
+  if(rows_copy[row][column].type == '$' && rows_copy[next_row][next_column].type == EMPTY)
+    {
+      exchange_cells(rows_copy, next_row, next_column, row, column);
+      rows_copy[row][column].type = 't';
+      rows_copy[next_row][next_column].type = 's';
+      return;
+    }
+
+  exchange_cells(rows_copy, next_row, next_column, row, column);
+}
+
+
 /* process_wolf(int row, int column, struct world **rows) */
-process_wolf(int row, int column, struct world **rows) {
+void process_wolf(int row, int column, struct world **rows) {
 }
 /* process_sub_world(int redBlack)*/
 void process_sub_world(int redBlack){
@@ -216,12 +343,15 @@ int main(int argc, char *argv[]){
     fclose(file);
   }
 
+  print_world();
   for (i=0; i<n_generations; i++) {
     process_sub_world(RED);
     process_sub_world(BLACK);
+    printf("Iteration %d\n", i);
+    print_world();
   }
   // prints the rows
-  print_world();
+  // print_world();
   
   return 0;
 }
