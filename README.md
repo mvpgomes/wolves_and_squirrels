@@ -1,4 +1,19 @@
-wolfes_and_squirrels
+Wolves &amp; Squirrels
 ====================
 
-Repository for the CPD project, wolfs &amp; squirrels.
+Group 17's CPD 2013/14 project repository.
+
+Serial version status
+-----
+
+Done (needs further testing).
+
+OpenMP version status
+-----
+
+Not started - due 1/November.
+
+OpenMPI version status
+-----
+
+Not started - due 6/December.
