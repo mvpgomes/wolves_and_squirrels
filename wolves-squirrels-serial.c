@@ -241,19 +241,44 @@ void process_squirrel(int row, int column, struct world **rows_copy)
   if(rows_copy[next_row][next_column].type == TREE)
     {
       exchange_cells(rows_copy, next_row, next_column, row, column);
-      rows_copy[row][column].type = EMPTY;
-      rows_copy[next_row][next_column].type = TREEWSQUIRREL;
+      if(rows_copy[next_row][next_column].breeding_period < 1)
+	{
+	  rows_copy[row][column].breeding_period = squirrel_breeding_period;
+	  rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+	  rows_copy[row][column].type = SQUIRREL;
+	  rows_copy[next_row][next_column].type = TREEWSQUIRREL;
+	}
+      else
+	{
+	  rows_copy[row][column].type = EMPTY;
+	  rows_copy[next_row][next_column].type = TREEWSQUIRREL;
+	}
       return;
     }
   if(rows_copy[row][column].type == TREEWSQUIRREL && rows_copy[next_row][next_column].type == EMPTY)
     {
       exchange_cells(rows_copy, next_row, next_column, row, column);
+      if(rows_copy[next_row][next_column].breeding_period < 1)
+	{
+	  rows_copy[row][column].breeding_period = squirrel_breeding_period;
+	  rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+	  rows_copy[row][column].type = TREEWSQUIRREL;
+	  rows_copy[next_row][next_column].type = SQUIRREL;
+	}
       rows_copy[row][column].type = TREE;
       rows_copy[next_row][next_column].type = SQUIRREL;
       return;
     }
 
   exchange_cells(rows_copy, next_row, next_column, row, column);
+  if(rows_copy[next_row][next_column].breeding_period < 1)
+    {
+      rows_copy[row][column].breeding_period = squirrel_breeding_period;
+      rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+      rows_copy[row][column].type = SQUIRREL;
+      rows_copy[next_row][next_column].type = SQUIRREL;
+    }
+
 }
 
 
@@ -314,6 +339,9 @@ void kill_wolfs() {
 			if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 1) {
 				rows[i][k].type = EMPTY;
 			}
+
+			if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL)
+			  rows[i][k].breeding_period--;
 		}
 	}
 }
@@ -369,10 +397,18 @@ int main(int argc, char *argv[]){
   print_world();
   for (i=0; i<n_generations; i++) {
     process_sub_world(RED);
+
+    printf("Red subworld on Iteration %d\n", i);
+    print_world();
+
     process_sub_world(BLACK);
     kill_wolfs();
-    printf("Iteration %d\n", i);
+
+    printf("Black subworld on Iteration %d\n", i);
     print_world();
+
+    //    printf("Iteration %d\n", i);
+    //print_world();
   }
   // prints the rows
   // print_world();
