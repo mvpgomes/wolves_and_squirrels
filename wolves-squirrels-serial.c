@@ -238,8 +238,8 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
     }
 	  
     if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = squirrel_breeding_period;
-	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+      rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
+	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
 	    rows_copy[row][column].type = SQUIRREL;
 	    rows_copy[next_row][next_column].type = SQUIRREL;
 	  } else {
@@ -254,8 +254,8 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
     exchange_cells(rows_copy, next_row, next_column, row, column);
     
     if(rows_copy[next_row][next_column].breeding_period < 1) {
-	    rows_copy[row][column].breeding_period = squirrel_breeding_period;
-	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+	    rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
+	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
 	    rows_copy[row][column].type = SQUIRREL;
 	    rows_copy[next_row][next_column].type = TREEWSQUIRREL;
 	  } else {
@@ -270,8 +270,8 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
     exchange_cells(rows_copy, next_row, next_column, row, column);
 
     if(rows_copy[next_row][next_column].breeding_period < 1) {
-	    rows_copy[row][column].breeding_period = squirrel_breeding_period;
-	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+	    rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
+	    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
 	    rows_copy[row][column].type = TREEWSQUIRREL;
 	    rows_copy[next_row][next_column].type = SQUIRREL;
 	  } else {
@@ -285,8 +285,8 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
   exchange_cells(rows_copy, next_row, next_column, row, column);
   
   if(rows_copy[next_row][next_column].breeding_period < 1) {
-    rows_copy[row][column].breeding_period = squirrel_breeding_period;
-    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+    rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
+    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
     rows_copy[row][column].type = SQUIRREL;
     rows_copy[next_row][next_column].type = SQUIRREL;
   }
@@ -318,28 +318,54 @@ void process_wolf(int row, int column, struct world **rows_copy) {
 		exchange_cells(rows_copy, next_row, next_column, row, column);
 
     if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = wolf_breeding_period;
-      rows_copy[next_row][next_column].breeding_period = wolf_breeding_period;
+      rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
+      rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
       rows_copy[row][column].type = WOLF;
       rows_copy[next_row][next_column].type = WOLF;
-      rows_copy[row][column].starvation_period = wolf_starvation_period+1;
+      rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
     } else {
 		  rows_copy[row][column].type = EMPTY;
     }
 
-		rows_copy[next_row][next_column].starvation_period = wolf_starvation_period+1;
+		rows_copy[next_row][next_column].starvation_period = wolf_starvation_period + 1;
 
 		return;
 	}
 
+  if(rows_copy[next_row][next_column].type == WOLF) {
+    exchange_cells(rows_copy, next_row, next_column, row, column);
+
+    if(rows_copy[row][column].starvation_period > rows_copy[next_row][next_column].starvation_period) {
+      rows_copy[next_row][next_column].starvation_period = rows_copy[row][column].starvation_period;
+      rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
+    } else if (rows_copy[row][column].starvation_period == rows_copy[next_row][next_column].starvation_period) {
+      if(rows_copy[row][column].breeding_period > rows_copy[next_row][next_column].breeding_period) {
+        rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
+      }
+    }
+    
+    if(rows_copy[next_row][next_column].breeding_period < 1) {
+      rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
+      rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
+      rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
+      rows_copy[row][column].type = WOLF;
+      rows_copy[next_row][next_column].type = WOLF;
+    } else {
+      rows_copy[row][column].type = EMPTY;
+      rows_copy[next_row][next_column].type = WOLF;
+    }
+    
+    return;
+  }
+
 	exchange_cells(rows_copy, next_row, next_column, row, column);
 
   if(rows_copy[next_row][next_column].breeding_period < 1) {
-    rows_copy[row][column].breeding_period = wolf_breeding_period;
-    rows_copy[next_row][next_column].breeding_period = wolf_breeding_period;
+    rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
+    rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
     rows_copy[row][column].type = WOLF;
     rows_copy[next_row][next_column].type = WOLF;
-    rows_copy[row][column].starvation_period = wolf_starvation_period+1;
+    rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
   }
 }
 
