@@ -225,7 +225,12 @@ void process_squirrel(int row, int column, struct world **rows_copy)
   struct world aux_cell;
 
   struct list_pos* list = compute_squirrel_movement(row, column);
-  p = select_direction(row, column, list->num_elems);
+
+  if(list->num_elems == 0) {
+  	return;
+  } else {
+ 	 p = select_direction(row, column, list->num_elems);
+  }
 
   next_pos = get_element(list, p);
   next_row = next_pos->row;
@@ -259,7 +264,9 @@ void process_wolf(int row, int column, struct world **rows_copy) {
     struct list_pos* list = compute_wolf_movement(row, column);    
     struct list_pos* squirrels = find_squirrels(list);
 
-    if(squirrels->num_elems == 0) {
+    if (list->num_elems == 0) {
+    	return;
+    } else if(squirrels->num_elems == 0) {
     	p = select_direction(row, column, list->num_elems);
     	next_pos = get_element(list, p);
 	} else {
