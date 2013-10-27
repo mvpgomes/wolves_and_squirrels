@@ -191,19 +191,19 @@ struct list_pos* compute_squirrel_movement(int row, int column, struct world **r
   list->last = NULL;
   list->num_elems = 0;
 
-  if(row > 0 && (rows_copy[row-1][column].type == EMPTY || rows_copy[row-1][column].type == TREE))
+  if(row > 0 && (rows_copy[row-1][column].type != ICE))
     {
       add_elem(row-1, column, list);
     }
-  if(column < (side_size - 1) && (rows_copy[row][column+1].type == EMPTY || rows_copy[row][column+1].type == TREE))
+  if(column < (side_size - 1) && (rows_copy[row][column+1].type != ICE))
     {
       add_elem(row, column+1, list);
     }
-  if(row < (side_size - 1) && (rows_copy[row+1][column].type == EMPTY || rows_copy[row+1][column].type == TREE))
+  if(row < (side_size - 1) && (rows_copy[row+1][column].type != ICE))
     {
       add_elem(row+1, column, list);
     }
-  if(column > 0 && (rows_copy[row][column-1].type == EMPTY || rows_copy[row][column-1].type == TREE))
+  if(column > 0 && (rows_copy[row][column-1].type != ICE))
     {
       add_elem(row, column-1, list);
     }
@@ -238,6 +238,27 @@ void process_squirrel(int row, int column, struct world **rows_copy)
   next_row = next_pos->row;
   next_column = next_pos->column;
 
+  if(rows_copy[next_row][next_column].type == SQUIRREL)
+    {
+      exchange_cells(rows_copy, next_row, next_column, row, column);
+
+      if(rows_copy[row][column].breeding_period > rows_copy[next_row][next_column].breeding_period)
+	rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
+	  
+      if(rows_copy[next_row][next_column].breeding_period < 1)
+	{
+	  rows_copy[row][column].breeding_period = squirrel_breeding_period;
+	  rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period;
+	  rows_copy[row][column].type = SQUIRREL;
+	  rows_copy[next_row][next_column].type = SQUIRREL;
+	}
+      else
+	{
+	  rows_copy[row][column].type = EMPTY;
+	  rows_copy[next_row][next_column].type = SQUIRREL;
+	}
+      return;
+    }
   if(rows_copy[next_row][next_column].type == TREE)
     {
       exchange_cells(rows_copy, next_row, next_column, row, column);
@@ -265,8 +286,11 @@ void process_squirrel(int row, int column, struct world **rows_copy)
 	  rows_copy[row][column].type = TREEWSQUIRREL;
 	  rows_copy[next_row][next_column].type = SQUIRREL;
 	}
-      rows_copy[row][column].type = TREE;
-      rows_copy[next_row][next_column].type = SQUIRREL;
+      else
+	{
+	  rows_copy[row][column].type = TREE;
+	  rows_copy[next_row][next_column].type = SQUIRREL;
+	}
       return;
     }
 
