@@ -101,7 +101,7 @@ void initialize_world(FILE *file) {
     }
   }
 
-#pragma omp parallel for
+#pragma omp parallel for private(j)
   for(i = 0; i < side_size; i++) {
     for(j = 0; j < side_size; j++) {
       rows[i][j].type = EMPTY;
@@ -411,27 +411,20 @@ void process_sub_world(int redBlack) {
   memcpy(world, copy, sizeof(struct world) * side_size * side_size);
 }
 
-void kill_wolves() {
+void update_periods() {
 	int i, k;
 
+#pragma omp parallel for private (k)
 	for(i = 0; i < side_size; i++) {
-		for(k = 0; k < side_size ;k++) {
+		for(k = 0; k < side_size; k++) {
 			if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 0) {
 				rows[i][k].type = EMPTY;
 			}
+			if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL || rows[i][k].type == WOLF) {
+				rows[i][k].breeding_period--;
+			}
 		}
 	}
-}
-
-void update_breeding_period() {
-  int i, k;
-
-  for(i = 0; i < side_size; i++) {
-    for(k = 0; k < side_size; k++) {
-      if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL || rows[i][k].type == WOLF)
-        rows[i][k].breeding_period--;
-    }
-  }
 }
 
 /* print_rows() : function that's print the actual state of the rows*/
@@ -496,8 +489,8 @@ int main(int argc, char *argv[]) {
     print_world();
 
     process_sub_world(BLACK);
-    kill_wolves();
-    update_breeding_period();
+    
+    update_periods();
 
     printf("Black subworld on Iteration %d\n", i);
     print_world();
