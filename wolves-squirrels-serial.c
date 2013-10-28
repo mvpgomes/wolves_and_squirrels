@@ -166,16 +166,16 @@ struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_
   list->last = NULL;
   list->num_elems = 0;
   
-  if(row > 0 && (rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL)) {
+  if(row > 0 && (rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL || rows_copy[row - 1][column].type == WOLF)) {
     add_elem(row - 1, column, list);
   }
-  if(column < (side_size - 1) && (rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL)) {
+  if(column < (side_size - 1) && (rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL || rows_copy[row][column + 1].type == WOLF)) {
     add_elem(row, column + 1, list);
   }
-  if(row < (side_size - 1) && (rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL)) {
+  if(row < (side_size - 1) && (rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL || rows_copy[row + 1][column].type == WOLF)) {
     add_elem(row + 1, column, list);
   }
-  if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL)) {
+  if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL || rows_copy[row][column - 1].type == WOLF)) {
     add_elem(row, column - 1, list);
   }
   
@@ -246,6 +246,19 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
 	    rows_copy[row][column].type = EMPTY;
 	    rows_copy[next_row][next_column].type = SQUIRREL;
 	  }
+    
+    return;
+  }
+  
+  if(rows_copy[next_row][next_column].type == WOLF) {
+
+	if(rows_copy[row][column].type == TREEWSQUIRREL) {
+		rows_copy[row][column].type = TREE;
+	} else {
+		rows_copy[row][column].type = EMPTY;
+	}
+    
+    rows_copy[next_row][next_column].starvation_period = wolf_starvation_period + 1;
     
     return;
   }
@@ -400,7 +413,7 @@ void kill_wolves() {
 
 	for(i = 0; i < side_size; i++) {
 		for(k = 0; k < side_size ;k++) {
-			if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 1) {
+			if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 0) {
 				rows[i][k].type = EMPTY;
 			}
 		}
