@@ -456,6 +456,20 @@ void print_world() {
   }
 }
 
+/* print_world_pos() : function that prints a list in the form (row,column,type) with the objects on the world map */
+void print_world_pos()
+{
+  int i, k;
+
+  for(i = 0; i < side_size; i++)
+    {
+      for(k = 0; k < side_size; k++)
+	{
+	  if(rows[i][k].type != EMPTY)
+	    printf("%d %d %c\n", i, k, rows[i][k].type);
+	}
+    }
+}
 /* main : function responsible for the main interaction of the program. */
 int main(int argc, char *argv[]) {
   char *file_name;
@@ -484,20 +498,18 @@ int main(int argc, char *argv[]) {
     fclose(file);
   }
 
-  print_world();
+  //print_world();
 
   for (i = 0; i < n_generations; i++) {
     process_sub_world(RED);
 
-    printf("Red subworld on Iteration %d\n", i);
-    print_world();
-
     process_sub_world(BLACK);
+
     kill_wolves();
     update_breeding_period();
 
-    printf("Black subworld on Iteration %d\n", i);
-    print_world();
   }
+
+  print_world_pos();
   return 0;
 }
