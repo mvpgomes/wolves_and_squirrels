@@ -14,7 +14,7 @@ int main(int argc, char **argv){
 
   char array[] = {'i','s','t','w'};
 
-  if( argc != 3 ){
+  if( argc != 4 ){
     cout << "Wrong number of arguments!" << endl;
     exit(-1);
   } else { 
