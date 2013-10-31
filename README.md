@@ -11,7 +11,7 @@ Done (needs further testing).
 OpenMP version status
 -----
 
-Not started - due 1/November.
+On Going - due 1/November.
 
 OpenMPI version status
 -----
