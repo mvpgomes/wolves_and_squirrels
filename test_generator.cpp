@@ -18,12 +18,12 @@ int main(int argc, char **argv){
     cout << "Wrong number of arguments!" << endl;
     exit(-1);
   } else { 
-    size = atoi(argv[1]);
-    n_elements = atoi(argv[2]);
+    size = atoi(argv[2]);
+    n_elements = atoi(argv[3]);
   }
   if( n_elements > size * size ){
     cout << "Number of elements exceed the allowed!" << endl;
-  } else { file.open("test.txt"); }
+  } else { file.open(argv[1]); }
 
   file << size << endl;
   int i = 0;
