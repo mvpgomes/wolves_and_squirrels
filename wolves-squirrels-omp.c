@@ -1,6 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h> 
+#include <omp.h>
 
 /* Constants */
 #define EMPTY ' '
@@ -30,7 +31,9 @@ struct list_pos {
   struct position* first;
   struct position* last;
   int num_elems;
-};
+} *my_locks;
+
+#pragma omp threadprivate(my_locks)
 
 /* Array of structures that represents a 2-D grid. */
 struct world {
@@ -107,6 +110,7 @@ void initialize_world(FILE *file) {
       rows[i][j].type = EMPTY;
     }
   }
+  
 }
 
 /* populate_rows(FILE *file) : function responsible for populate the struct rows according the input file. */
@@ -163,48 +167,102 @@ struct list_pos* find_squirrels(struct list_pos* array, struct world **rows_copy
 }
 
 /* alternate compute_wolf_movement(int row, int column): */
-struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_copy) {
+struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_copy, omp_lock_t* locks) {
   struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
   list->first = NULL;
   list->last = NULL;
   list->num_elems = 0;
   
+  omp_set_lock(&locks[(row - 1)*side_size+column]);
   if(row > 0 && (rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL || rows_copy[row - 1][column].type == WOLF)) {
     add_elem(row - 1, column, list);
+    add_elem(row - 1, column, my_locks);
   }
+  else {
+	  omp_unset_lock(&locks[(row - 1)*side_size+column]);
+  }
+  
+  omp_set_lock(&locks[row*side_size+(column + 1)]);
   if(column < (side_size - 1) && (rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL || rows_copy[row][column + 1].type == WOLF)) {
     add_elem(row, column + 1, list);
+    add_elem(row, column + 1, my_locks);
   }
+  else {
+	  omp_unset_lock(&locks[row*side_size+(column + 1)]);
+  }
+  
+  omp_set_lock(&locks[(row + 1)*side_size+column]);
   if(row < (side_size - 1) && (rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL || rows_copy[row + 1][column].type == WOLF)) {
     add_elem(row + 1, column, list);
+    add_elem(row + 1, column, my_locks);
   }
+  else {
+	  omp_unset_lock(&locks[(row + 1)*side_size+column]);
+  }
+  
+  omp_set_lock(&locks[row*side_size+(column - 1)]);
   if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL || rows_copy[row][column - 1].type == WOLF)) {
     add_elem(row, column - 1, list);
+    add_elem(row, column - 1, my_locks);
+  }
+  else {
+	  omp_unset_lock(&locks[row*side_size+(column - 1)]);
   }
   
   return list;
 }
 
 /* alternate compute_squirrel_movement(int row, int column): */
-struct list_pos* compute_squirrel_movement(int row, int column, struct world **rows_copy) {
+struct list_pos* compute_squirrel_movement(int row, int column, struct world **rows_copy, omp_lock_t* locks) {
   struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
   list->first = NULL;
   list->last = NULL;
   list->num_elems = 0;
-
-  if(row > 0 && (rows_copy[row - 1][column].type != ICE)) {
-    add_elem(row - 1, column, list);
-  }
-  if(column < (side_size - 1) && (rows_copy[row][column + 1].type != ICE)) {
-    add_elem(row, column + 1, list);
-  }
-  if(row < (side_size - 1) && (rows_copy[row + 1][column].type != ICE)) {
-    add_elem(row + 1, column, list);
-  }
-  if(column > 0 && (rows_copy[row][column - 1].type != ICE)) {
-    add_elem(row, column - 1, list);
+  
+  if(row > 0) {
+    omp_set_lock(&locks[(row - 1)*side_size+column]);
+    if(rows_copy[row - 1][column].type != ICE) {
+      add_elem(row - 1, column, list);
+      add_elem(row - 1, column, my_locks);
+    }
+    else {
+	  omp_unset_lock(&locks[(row - 1)*side_size+column]);
+    }
   }
   
+  if(column < (side_size - 1)) {
+    omp_set_lock(&locks[row*side_size+(column + 1)]);
+    if(rows_copy[row][column + 1].type != ICE) {
+      add_elem(row, column + 1, list);
+      add_elem(row, column + 1, my_locks);
+    }
+    else {
+	  omp_unset_lock(&locks[row*side_size+(column + 1)]);
+    }
+  }
+  
+  if(row < (side_size - 1)) {
+    omp_set_lock(&locks[(row + 1)*side_size+column]);
+    if(rows_copy[row + 1][column].type != ICE) {
+      add_elem(row + 1, column, list);
+      add_elem(row + 1, column, my_locks);
+    }
+    else {
+	  omp_unset_lock(&locks[(row + 1)*side_size+column]);
+    }
+  }
+  
+  if(column > 0) {
+    omp_set_lock(&locks[row*side_size+(column - 1)]);
+    if(rows_copy[row][column - 1].type != ICE) {
+      add_elem(row, column - 1, list);
+      add_elem(row, column - 1, my_locks);
+    }
+    else {
+	  omp_unset_lock(&locks[row*side_size+(column - 1)]);
+    }
+  }
+
   return list;
 }
 
@@ -216,13 +274,13 @@ void exchange_cells(struct world **copy, int new_row, int new_column, int row, i
 }
 
 /* process_squirrel(int row, int column, struct world **rows) */
-void process_squirrel(int row, int column, struct world **rows_copy) {
+void process_squirrel(int row, int column, struct world **rows_copy, omp_lock_t* locks) {
   int p, next_row, next_column;
   struct position* next_pos;
   struct world aux_cell;
 
-  struct list_pos* list = compute_squirrel_movement(row, column, rows_copy);
-
+  
+  struct list_pos* list = compute_squirrel_movement(row, column, rows_copy, locks);
   if(list->num_elems == 0) {
   	return;
   } else {
@@ -309,12 +367,12 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
 }
 
 /* process_wolf(int row, int column, struct world **rows_copy) */
-void process_wolf(int row, int column, struct world **rows_copy) {
+void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* locks) {
   int p, next_row, next_column;
   struct position* next_pos;
   struct world aux_cell;
     
-  struct list_pos* list = compute_wolf_movement(row, column, rows_copy);
+  struct list_pos* list = compute_wolf_movement(row, column, rows_copy, locks);
   struct list_pos* squirrels = find_squirrels(list, rows_copy);
 
   if (list->num_elems == 0) {
@@ -387,25 +445,50 @@ void process_wolf(int row, int column, struct world **rows_copy) {
 
 /* process_sub_world(int redBlack)*/
 void process_sub_world(int redBlack) {
-  int i,k;
+  int i,k,l;
   struct world * copy = (struct world *) malloc( sizeof(struct world) * side_size * side_size);
   memcpy(copy, world, sizeof(struct world) * side_size * side_size);
   struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
-
+  
+  omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
+  
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_init_lock(&locks[i]);
+  }
+  
   for (i = 0; i < side_size; i++) {
     rows_copy[i] = &copy[i*side_size];
   }
 
+#pragma omp parallel for private(k, l) shared(locks)
   for(i = 0; i < side_size; i++) {
     for(k = (i + redBlack) % 2; k < side_size; k += 2) {
+		
+		my_locks = (struct list_pos*) malloc(sizeof(struct list_pos));
+		
+		my_locks->first = NULL;
+		my_locks->last = NULL;
+		my_locks->num_elems = 0;
+		
+		
       if(rows_copy[i][k].type == EMPTY || rows_copy[i][k].type == TREE || rows_copy[i][k].type == ICE) { 
         continue;
       } else if(rows_copy[i][k].type == SQUIRREL || rows_copy[i][k].type == TREEWSQUIRREL) { 
-        process_squirrel(i, k, rows_copy);
+        process_squirrel(i, k, rows_copy, locks);
       } else { 
-        process_wolf(i, k, rows_copy);
+        process_wolf(i, k, rows_copy, locks);
       }
+      
+      for(l = 0; l < my_locks->num_elems; l++) {
+		  struct position * pos = get_element(my_locks, l);
+		  omp_unset_lock(&locks[(pos->row)*side_size+(pos->column)]);
+	  }
+      
     }
+  }
+  
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_destroy_lock(&locks[i]);
   }
 
   memcpy(world, copy, sizeof(struct world) * side_size * side_size);
