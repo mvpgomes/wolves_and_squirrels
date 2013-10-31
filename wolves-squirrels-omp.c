@@ -173,40 +173,48 @@ struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_
   list->last = NULL;
   list->num_elems = 0;
   
-  omp_set_lock(&locks[(row - 1)*side_size+column]);
-  if(row > 0 && (rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL || rows_copy[row - 1][column].type == WOLF)) {
-    add_elem(row - 1, column, list);
-    add_elem(row - 1, column, my_locks);
-  }
-  else {
-	  omp_unset_lock(&locks[(row - 1)*side_size+column]);
-  }
-  
-  omp_set_lock(&locks[row*side_size+(column + 1)]);
-  if(column < (side_size - 1) && (rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL || rows_copy[row][column + 1].type == WOLF)) {
-    add_elem(row, column + 1, list);
-    add_elem(row, column + 1, my_locks);
-  }
-  else {
-	  omp_unset_lock(&locks[row*side_size+(column + 1)]);
+  if(row > 0) {
+    omp_set_lock(&locks[(row - 1)*side_size+column]);
+    if(rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL || rows_copy[row - 1][column].type == WOLF) {
+      add_elem(row - 1, column, list);
+      add_elem(row - 1, column, my_locks);
+    }
+    else {
+      omp_unset_lock(&locks[(row - 1)*side_size+column]);
+    }
   }
   
-  omp_set_lock(&locks[(row + 1)*side_size+column]);
-  if(row < (side_size - 1) && (rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL || rows_copy[row + 1][column].type == WOLF)) {
-    add_elem(row + 1, column, list);
-    add_elem(row + 1, column, my_locks);
-  }
-  else {
-	  omp_unset_lock(&locks[(row + 1)*side_size+column]);
+  if(column < (side_size -1)) {
+    omp_set_lock(&locks[row*side_size+(column + 1)]);
+    if(rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL || rows_copy[row][column + 1].type == WOLF) {
+      add_elem(row, column + 1, list);
+      add_elem(row, column + 1, my_locks);
+    }
+    else {
+      omp_unset_lock(&locks[row*side_size+(column + 1)]);
+    }
   }
   
-  omp_set_lock(&locks[row*side_size+(column - 1)]);
-  if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL || rows_copy[row][column - 1].type == WOLF)) {
-    add_elem(row, column - 1, list);
-    add_elem(row, column - 1, my_locks);
+  if(row < (side_size - 1)) {
+    omp_set_lock(&locks[(row + 1)*side_size+column]);
+    if(rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL || rows_copy[row + 1][column].type == WOLF) {
+      add_elem(row + 1, column, list);
+      add_elem(row + 1, column, my_locks);
+    }
+    else {
+      omp_unset_lock(&locks[(row + 1)*side_size+column]);
+    }
   }
-  else {
-	  omp_unset_lock(&locks[row*side_size+(column - 1)]);
+  
+  if(column > 0) {
+    omp_set_lock(&locks[row*side_size+(column - 1)]);
+    if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL || rows_copy[row][column - 1].type == WOLF)) {
+      add_elem(row, column - 1, list);
+      add_elem(row, column - 1, my_locks);
+    }
+    else {
+      omp_unset_lock(&locks[row*side_size+(column - 1)]);
+    }
   }
   
   return list;
