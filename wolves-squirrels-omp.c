@@ -104,7 +104,7 @@ struct list_pos* remove_locks(struct position* pos, omp_lock_t *locks) {
 	list->num_elems = 0;
 
 	for(i = 0; i < my_locks->num_elems; i++) {
-		tmp_pos = get_element(locks, i);
+		tmp_pos = get_element(my_locks, i);
 		if(!pos_equals(pos, tmp_pos)) {
 			omp_unset_lock(&locks[(tmp_pos->row)*side_size+(tmp_pos->column)]);
 		} else {
