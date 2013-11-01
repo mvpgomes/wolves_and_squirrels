@@ -90,6 +90,31 @@ struct position* get_element(struct list_pos* list, int n) {
   return pos;
 }
 
+int pos_equals(struct position* pos1, struct position* pos2) {
+	return (pos1->row == pos2->row) && (pos1->column == pos2->column);
+}
+
+struct list_pos* remove_locks(struct position* pos, struct list_pos* locks) {
+	int i;
+	struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
+	struct position* tmp_pos;
+
+	list->first = NULL;
+	list->last = NULL;
+	list->num_elems = 0;
+
+	for(i = 0; i < locks->num_elems; i++) {
+		tmp_pos = get_element(locks, i);
+		if(!pos_equals(pos, tmp_pos) {
+			omp_unset_lock(&locks[(tmp_pos->row)*side_size+(tmp_pos->column)]);
+		} else {
+			add_elem(tmp_pos->row, tmp_pos->column, list);
+		}
+	}
+
+	return list;
+}
+
 /* initialize_rows(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
 void initialize_world(FILE *file) {
   int i, j;
@@ -296,6 +321,7 @@ void process_squirrel(int row, int column, struct world **rows_copy, omp_lock_t*
   }
 
   next_pos = get_element(list, p);
+  locks = remove_locks(next_pos, locks);
   next_row = next_pos->row;
   next_column = next_pos->column;
 
@@ -393,6 +419,7 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 	  next_pos = get_element(squirrels, p);
 	}
 
+	locks = remove_locks(next_pos, locks);
 	next_row = next_pos->row;
 	next_column = next_pos->column;
 
