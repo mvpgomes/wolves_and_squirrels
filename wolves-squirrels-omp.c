@@ -479,17 +479,11 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 }
 
 /* process_sub_world(int redBlack)*/
-void process_sub_world(int redBlack) {
+void process_sub_world(int redBlack, omp_lock_t *locks) {
   int i,k,l;
   struct world * copy = (struct world *) malloc( sizeof(struct world) * side_size * side_size);
   memcpy(copy, world, sizeof(struct world) * side_size * side_size);
   struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
-  
-  omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
-  
-  for(i = 0; i < side_size*side_size; i++) {
-	  omp_init_lock(&locks[i]);
-  }
   
   for (i = 0; i < side_size; i++) {
     rows_copy[i] = &copy[i*side_size];
@@ -520,10 +514,6 @@ void process_sub_world(int redBlack) {
 	  }
       
     }
-  }
-  
-  for(i = 0; i < side_size*side_size; i++) {
-	  omp_destroy_lock(&locks[i]);
   }
 
   memcpy(world, copy, sizeof(struct world) * side_size * side_size);
@@ -614,18 +604,28 @@ int main(int argc, char *argv[]) {
 
   //print_world();
 
+  omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
+  
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_init_lock(&locks[i]);
+  }
+
   for (i = 0; i < n_generations; i++) {
-    process_sub_world(RED);
+    process_sub_world(RED, locks);
 
     //printf("Red subworld on Iteration %d\n", i);
     //    print_world();
 
-    process_sub_world(BLACK);
+    process_sub_world(BLACK, locks);
     
     update_periods();
 
     //printf("Black subworld on Iteration %d\n", i);
     //print_world();
+  }
+
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_destroy_lock(&locks[i]);
   }
 
   print_world_pos();
