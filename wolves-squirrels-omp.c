@@ -18,6 +18,7 @@ int wolf_breeding_period;
 int squirrel_breeding_period;
 int wolf_starvation_period;
 int side_size;
+int chunk;
 
 /* Structure that represents a position in the grid. */
 struct position {
@@ -489,7 +490,7 @@ void process_sub_world(int redBlack, omp_lock_t *locks) {
     rows_copy[i] = &copy[i*side_size];
   }
 
-#pragma omp parallel for private(k, l) shared(locks)
+#pragma omp parallel for private(k, l) shared(locks) schedule(static, chunk)
   for(i = 0; i < side_size; i++) {
     for(k = (i + redBlack) % 2; k < side_size; k += 2) {
 		
@@ -579,6 +580,10 @@ int main(int argc, char *argv[]) {
   char *file_name;
   int n_generations,i;
   FILE *file;
+  double start, end;
+
+  // get the wall time for the start of the program
+  start = omp_get_wtime();
 
   if(argc == 6) {
     file_name = argv[1];
@@ -603,6 +608,8 @@ int main(int argc, char *argv[]) {
   }
 
   //print_world();
+  // CHUNK definition - used for sharing the work-load among threads
+  chunk = side_size / 2;
 
   omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
   
@@ -627,6 +634,11 @@ int main(int argc, char *argv[]) {
   for(i = 0; i < side_size*side_size; i++) {
 	  omp_destroy_lock(&locks[i]);
   }
+
+  // get the time of when the program ends
+  end = omp_get_wtime();
+  // print the time it took
+  printf("time: %.2f\n", end-start);
 
   print_world_pos();
   return 0;
