@@ -411,7 +411,7 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 
   if (list->num_elems == 0) {
   	return;
-  //} else if(squirrels->num_elems == 0) {
+  }// else if(squirrels->num_elems == 0) {
   	p = select_direction(row, column, list->num_elems);
   	next_pos = get_element(list, p);
 	//} else {
