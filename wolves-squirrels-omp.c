@@ -90,6 +90,31 @@ struct position* get_element(struct list_pos* list, int n) {
   return pos;
 }
 
+int pos_equals(struct position* pos1, struct position* pos2) {
+	return (pos1->row == pos2->row) && (pos1->column == pos2->column);
+}
+
+struct list_pos* remove_locks(struct position* pos, omp_lock_t *locks) {
+	int i;
+	struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
+	struct position* tmp_pos;
+
+	list->first = NULL;
+	list->last = NULL;
+	list->num_elems = 0;
+
+	for(i = 0; i < my_locks->num_elems; i++) {
+		tmp_pos = get_element(my_locks, i);
+		if(!pos_equals(pos, tmp_pos)) {
+			omp_unset_lock(&locks[(tmp_pos->row)*side_size+(tmp_pos->column)]);
+		} else {
+			add_elem(tmp_pos->row, tmp_pos->column, list);
+		}
+	}
+
+	return list;
+}
+
 /* initialize_rows(FILE *file) : function responsible for allocate mememory for the 2-D grid.*/
 void initialize_world(FILE *file) {
   int i, j;
@@ -296,6 +321,7 @@ void process_squirrel(int row, int column, struct world **rows_copy, omp_lock_t*
   }
 
   next_pos = get_element(list, p);
+  my_locks = remove_locks(next_pos, locks);
   next_row = next_pos->row;
   next_column = next_pos->column;
 
@@ -393,6 +419,7 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 	  next_pos = get_element(squirrels, p);
 	}
 
+	my_locks = remove_locks(next_pos, locks);
 	next_row = next_pos->row;
 	next_column = next_pos->column;
 
@@ -452,17 +479,11 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 }
 
 /* process_sub_world(int redBlack)*/
-void process_sub_world(int redBlack) {
+void process_sub_world(int redBlack, omp_lock_t *locks) {
   int i,k,l;
   struct world * copy = (struct world *) malloc( sizeof(struct world) * side_size * side_size);
   memcpy(copy, world, sizeof(struct world) * side_size * side_size);
   struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
-  
-  omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
-  
-  for(i = 0; i < side_size*side_size; i++) {
-	  omp_init_lock(&locks[i]);
-  }
   
   for (i = 0; i < side_size; i++) {
     rows_copy[i] = &copy[i*side_size];
@@ -493,10 +514,6 @@ void process_sub_world(int redBlack) {
 	  }
       
     }
-  }
-  
-  for(i = 0; i < side_size*side_size; i++) {
-	  omp_destroy_lock(&locks[i]);
   }
 
   memcpy(world, copy, sizeof(struct world) * side_size * side_size);
@@ -587,18 +604,28 @@ int main(int argc, char *argv[]) {
 
   //print_world();
 
+  omp_lock_t * locks = (omp_lock_t *) malloc(side_size*side_size*sizeof(omp_lock_t));
+  
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_init_lock(&locks[i]);
+  }
+
   for (i = 0; i < n_generations; i++) {
-    process_sub_world(RED);
+    process_sub_world(RED, locks);
 
     //printf("Red subworld on Iteration %d\n", i);
     //    print_world();
 
-    process_sub_world(BLACK);
+    process_sub_world(BLACK, locks);
     
     update_periods();
 
     //printf("Black subworld on Iteration %d\n", i);
     //print_world();
+  }
+
+  for(i = 0; i < side_size*side_size; i++) {
+	  omp_destroy_lock(&locks[i]);
   }
 
   print_world_pos();
