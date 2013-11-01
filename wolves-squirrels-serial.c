@@ -312,17 +312,17 @@ void process_wolf(int row, int column, struct world **rows_copy) {
   struct world aux_cell;
     
   struct list_pos* list = compute_wolf_movement(row, column, rows_copy);
-  struct list_pos* squirrels = find_squirrels(list, rows_copy);
+  //struct list_pos* squirrels = find_squirrels(list, rows_copy);
 
   if (list->num_elems == 0) {
   	return;
-  } else if(squirrels->num_elems == 0) {
+  }// else if(squirrels->num_elems == 0) {
   	p = select_direction(row, column, list->num_elems);
   	next_pos = get_element(list, p);
-	} else {
-	  p = select_direction(row, column, squirrels->num_elems);
-	  next_pos = get_element(squirrels, p);
-	}
+	//} else {
+	  //p = select_direction(row, column, squirrels->num_elems);
+	  //next_pos = get_element(squirrels, p);
+	//}
 
 	next_row = next_pos->row;
 	next_column = next_pos->column;
