@@ -94,7 +94,7 @@ int pos_equals(struct position* pos1, struct position* pos2) {
 	return (pos1->row == pos2->row) && (pos1->column == pos2->column);
 }
 
-struct list_pos* remove_locks(struct position* pos) {
+struct list_pos* remove_locks(struct position* pos omp_lock_t *locks) {
 	int i;
 	struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
 	struct position* tmp_pos;
@@ -321,7 +321,7 @@ void process_squirrel(int row, int column, struct world **rows_copy, omp_lock_t*
   }
 
   next_pos = get_element(list, p);
-  my_locks = remove_locks(next_pos);
+  my_locks = remove_locks(next_pos, locks);
   next_row = next_pos->row;
   next_column = next_pos->column;
 
@@ -419,7 +419,7 @@ void process_wolf(int row, int column, struct world **rows_copy, omp_lock_t* loc
 	  next_pos = get_element(squirrels, p);
 	}
 
-	my_locks = remove_locks(next_pos);
+	my_locks = remove_locks(next_pos, locks);
 	next_row = next_pos->row;
 	next_column = next_pos->column;
 
