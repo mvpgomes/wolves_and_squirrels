@@ -94,7 +94,7 @@ int pos_equals(struct position* pos1, struct position* pos2) {
 	return (pos1->row == pos2->row) && (pos1->column == pos2->column);
 }
 
-struct list_pos* remove_locks(struct position* pos omp_lock_t *locks) {
+struct list_pos* remove_locks(struct position* pos, omp_lock_t *locks) {
 	int i;
 	struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
 	struct position* tmp_pos;
