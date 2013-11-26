@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
+#include <math.h>
 
 /* Constants */
 #define EMPTY ' '
@@ -13,11 +14,17 @@
 #define RED 0
 #define BLACK 1
 
+#define UPDSQL 3965
+#define UPDWLF 9865
+
 /* Global variables */
 int wolf_breeding_period;
 int squirrel_breeding_period;
 int wolf_starvation_period;
 int side_size;
+int nprocs;
+int id;
+int chunk;
 
 MPI_Datatype mpiworld;
 
@@ -38,6 +45,8 @@ struct list_pos {
 /* Array of structures that represents a 2-D grid. */
 struct world {
   char type;
+  int row;
+  int column;
   int breeding_period;
   int starvation_period;
 } *world, **rows; 
@@ -83,6 +92,7 @@ struct position* get_element(struct list_pos* list, int n) {
   struct position* pos = list->first;
 
   for(i = 0; i < n; i++) {
+
     pos = pos->next;
   }
 
@@ -95,17 +105,14 @@ void initialize_world(FILE *file) {
 
   if(fscanf(file, "%d", &side_size) == 1) {
     world = (struct world *) malloc(side_size * side_size * sizeof(struct world ));
-    rows = (struct world **) malloc(side_size * sizeof(struct world *));
-    for(i = 0; i < side_size; i++) {
-      rows[i] = &world[i * side_size];
-    }
   }
 
   for(i = 0; i < side_size; i++) {
     for(j = 0; j < side_size; j++) {
-      rows[i][j].type = EMPTY;
+      world[i*side_size+j].type = EMPTY;
     }
   }
+
 }
 
 /* populate_rows(FILE *file) : function responsible for populate the struct rows according the input file. */
@@ -117,22 +124,23 @@ void populate_world(FILE *file) {
   while(fscanf(file, "%d %d %c", &row, &column, &type) == 3) {
     switch(type) {
     case ICE:
-      rows[row][column].type = type;
+      world[row*side_size+column].type = type;
       break;
     case TREE:
-      rows[row][column].type = type;
+      world[row*side_size+column].type = type;
       break;
     case SQUIRREL:
-      rows[row][column].type = type;
-      rows[row][column].breeding_period = squirrel_breeding_period;
+      world[row*side_size+column].type = type;
+      world[row*side_size+column].breeding_period = squirrel_breeding_period;
       break;
     case WOLF:
-      rows[row][column].type = type;
-      rows[row][column].breeding_period = wolf_breeding_period;
-      rows[row][column].starvation_period = wolf_starvation_period;
+      world[row*side_size+column].type = type;
+      world[row*side_size+column].breeding_period = wolf_breeding_period;
+      world[row*side_size+column].starvation_period = wolf_starvation_period;
       break;
     }
   }
+
 } 
 
 /* compute_direction(int row, int column, int p): function responsible to select the direction of moviment. */
@@ -143,22 +151,22 @@ int select_direction(int row, int column, int p) {
 }
 
 /* compute_wolf_movement(int row, int column): */
-struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_copy) {
+struct list_pos* compute_wolf_movement(int row, int column, struct world **rows) {
   struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
   list->first = NULL;
   list->last = NULL;
   list->num_elems = 0;
 	
-  if(row > 0 && (rows_copy[row - 1][column].type == EMPTY || rows_copy[row - 1][column].type == SQUIRREL || rows_copy[row - 1][column].type == WOLF)) {
+  if(row > 0 && (rows[row - 1][column].type == EMPTY || rows[row - 1][column].type == SQUIRREL || rows[row - 1][column].type == WOLF)) {
     add_elem(row - 1, column, list);
   }
-  if(column < (side_size - 1) && (rows_copy[row][column + 1].type == EMPTY || rows_copy[row][column + 1].type == SQUIRREL || rows_copy[row][column + 1].type == WOLF)) {
+  if(column < (side_size - 1) && (rows[row][column + 1].type == EMPTY || rows[row][column + 1].type == SQUIRREL || rows[row][column + 1].type == WOLF)) {
     add_elem(row, column + 1, list);
   }
-  if(row < (side_size - 1) && (rows_copy[row + 1][column].type == EMPTY || rows_copy[row + 1][column].type == SQUIRREL || rows_copy[row + 1][column].type == WOLF)) {
+  if(row < (side_size - 1) && (rows[row + 1][column].type == EMPTY || rows[row + 1][column].type == SQUIRREL || rows[row + 1][column].type == WOLF)) {
     add_elem(row + 1, column, list);
   }
-  if(column > 0 && (rows_copy[row][column - 1].type == EMPTY || rows_copy[row][column - 1].type == SQUIRREL || rows_copy[row][column - 1].type == WOLF)) {
+  if(column > 0 && (rows[row][column - 1].type == EMPTY || rows[row][column - 1].type == SQUIRREL || rows[row][column - 1].type == WOLF)) {
     add_elem(row, column - 1, list);
   }
 	
@@ -166,22 +174,23 @@ struct list_pos* compute_wolf_movement(int row, int column, struct world **rows_
 }
 
 /* compute_squirrel_movement(int row, int column): */
-struct list_pos* compute_squirrel_movement(int row, int column, struct world **rows_copy) {
+struct list_pos* compute_squirrel_movement(int row, int column, struct world **rows) {
+
   struct list_pos* list = (struct list_pos*) malloc(sizeof(struct list_pos));
   list->first = NULL;
   list->last = NULL;
   list->num_elems = 0;
 
-  if(row > 0 && (rows_copy[row - 1][column].type != ICE)) {
+  if(row > 0 && (rows[row - 1][column].type != ICE)) {
     add_elem(row - 1, column, list);
   }
-  if(column < (side_size - 1) && (rows_copy[row][column + 1].type != ICE)) {
+  if(column < (side_size - 1) && (rows[row][column + 1].type != ICE)) {
     add_elem(row, column + 1, list);
   }
-  if(row < (side_size - 1) && (rows_copy[row + 1][column].type != ICE)) {
+  if(row < (side_size - 1) && (rows[row + 1][column].type != ICE)) {
     add_elem(row + 1, column, list);
   }
-  if(column > 0 && (rows_copy[row][column - 1].type != ICE)) {
+  if(column > 0 && (rows[row][column - 1].type != ICE)) {
     add_elem(row, column - 1, list);
   }
 	
@@ -197,12 +206,13 @@ void exchange_cells(struct world **copy, int new_row, int new_column, int row, i
 }
 
 /* process_squirrel(int row, int column, struct world **rows) */
-void process_squirrel(int row, int column, struct world **rows_copy) {
+void process_squirrel(int row, int column, struct world **rows) {
   int p, next_row, next_column;
   struct position* next_pos;
   struct world aux_cell;
+  MPI_Request request_old_pos, request_new_pos;
 
-  struct list_pos* list = compute_squirrel_movement(row, column, rows_copy);
+  struct list_pos* list = compute_squirrel_movement(row, column, rows);
 
   if(list->num_elems == 0) {
     return;
@@ -214,88 +224,113 @@ void process_squirrel(int row, int column, struct world **rows_copy) {
   next_row = next_pos->row;
   next_column = next_pos->column;
 
-  if(rows_copy[next_row][next_column].type == SQUIRREL) {
-    exchange_cells(rows_copy, next_row, next_column, row, column);
+  
+  if(rows[next_row][next_column].type == SQUIRREL) {
+    exchange_cells(rows, next_row, next_column, row, column);
 
-    if(rows_copy[row][column].breeding_period > rows_copy[next_row][next_column].breeding_period) {
-      rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
+    if(rows[row][column].breeding_period > rows[next_row][next_column].breeding_period) {
+      rows[next_row][next_column].breeding_period = rows[row][column].breeding_period;
     }
 		
-    if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[row][column].type = SQUIRREL;
-      rows_copy[next_row][next_column].type = SQUIRREL;
+    if(rows[next_row][next_column].breeding_period < 1) {
+      rows[row][column].breeding_period = squirrel_breeding_period + 1;
+      rows[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
+      rows[row][column].type = SQUIRREL;
+      rows[next_row][next_column].type = SQUIRREL;
     } else {
-      rows_copy[row][column].type = EMPTY;
-      rows_copy[next_row][next_column].type = SQUIRREL;
+      rows[row][column].type = EMPTY;
+      rows[next_row][next_column].type = SQUIRREL;
     }
 		
     return;
   }
 	
-  if(rows_copy[next_row][next_column].type == WOLF) {
+  if(rows[next_row][next_column].type == WOLF) {
 
-    if(rows_copy[row][column].type == TREEWSQUIRREL) {
-      rows_copy[row][column].type = TREE;
+    if(rows[row][column].type == TREEWSQUIRREL) {
+      rows[row][column].type = TREE;
     } else {
-      rows_copy[row][column].type = EMPTY;
+      rows[row][column].type = EMPTY;
     }
 		
-    rows_copy[next_row][next_column].starvation_period = wolf_starvation_period + 1;
+    rows[next_row][next_column].starvation_period = wolf_starvation_period + 1;
 		
     return;
   }
 
-  if(rows_copy[next_row][next_column].type == TREE) {
-    exchange_cells(rows_copy, next_row, next_column, row, column);
+  if(rows[next_row][next_column].type == TREE) {
+    exchange_cells(rows, next_row, next_column, row, column);
 		
-    if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[row][column].type = SQUIRREL;
-      rows_copy[next_row][next_column].type = TREEWSQUIRREL;
+    if(rows[next_row][next_column].breeding_period < 1) {
+      rows[row][column].breeding_period = squirrel_breeding_period + 1;
+      rows[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
+      rows[row][column].type = SQUIRREL;
+      rows[next_row][next_column].type = TREEWSQUIRREL;
     } else {
-      rows_copy[row][column].type = EMPTY;
-      rows_copy[next_row][next_column].type = TREEWSQUIRREL;
+      rows[row][column].type = EMPTY;
+      rows[next_row][next_column].type = TREEWSQUIRREL;
     }
 
     return;
   }
 	
-  if(rows_copy[row][column].type == TREEWSQUIRREL && rows_copy[next_row][next_column].type == EMPTY) {
-    exchange_cells(rows_copy, next_row, next_column, row, column);
+  if(rows[row][column].type == TREEWSQUIRREL && rows[next_row][next_column].type == EMPTY) {
+    exchange_cells(rows, next_row, next_column, row, column);
 
-    if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
-      rows_copy[row][column].type = TREEWSQUIRREL;
-      rows_copy[next_row][next_column].type = SQUIRREL;
+    if(rows[next_row][next_column].breeding_period < 1) {
+      rows[row][column].breeding_period = squirrel_breeding_period + 1;
+      rows[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
+      rows[row][column].type = TREEWSQUIRREL;
+      rows[next_row][next_column].type = SQUIRREL;
     } else {
-      rows_copy[row][column].type = TREE;
-      rows_copy[next_row][next_column].type = SQUIRREL;
+      rows[row][column].type = TREE;
+      rows[next_row][next_column].type = SQUIRREL;
     }
 
     return;
   }
 
-  exchange_cells(rows_copy, next_row, next_column, row, column);
+  exchange_cells(rows, next_row, next_column, row, column);
 	
-  if(rows_copy[next_row][next_column].breeding_period < 1) {
-    rows_copy[row][column].breeding_period = squirrel_breeding_period + 1;
-    rows_copy[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
-    rows_copy[row][column].type = SQUIRREL;
-    rows_copy[next_row][next_column].type = SQUIRREL;
+  if(rows[next_row][next_column].breeding_period < 1) {
+    rows[row][column].breeding_period = squirrel_breeding_period + 1;
+    rows[next_row][next_column].breeding_period = squirrel_breeding_period + 1;
+    rows[row][column].type = SQUIRREL;
+    rows[next_row][next_column].type = SQUIRREL;
   }
+
+  if(id)
+    {
+      if(row = id*chunk + chunk - 1)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
+	}
+      if(row = id*chunk)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
+	}
+    }
+  else
+    {
+      if(row = chunk - 1)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
+	}
+    }
+
 }
 
-/* process_wolf(int row, int column, struct world **rows_copy) */
-void process_wolf(int row, int column, struct world **rows_copy) {
-  int p, next_row, next_column;
+/* process_wolf(int row, int column, struct world **rows) */
+void process_wolf(int row, int column, struct world **rows) {
+  int p, next_row, next_column, nextid = id;
   struct position* next_pos;
   struct world aux_cell;
+  MPI_Request request_old_pos, request_new_pos;
 		
-  struct list_pos* list = compute_wolf_movement(row, column, rows_copy);
+  struct list_pos* list = compute_wolf_movement(row, column, rows);
 
   if (list->num_elems == 0) {
     return;
@@ -307,85 +342,121 @@ void process_wolf(int row, int column, struct world **rows_copy) {
   next_row = next_pos->row;
   next_column = next_pos->column;
 
-  if(rows_copy[next_row][next_column].type == SQUIRREL) {
-    exchange_cells(rows_copy, next_row, next_column, row, column);
 
-    if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
-      rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
-      rows_copy[row][column].type = WOLF;
-      rows_copy[next_row][next_column].type = WOLF;
-      rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
+  if(rows[next_row][next_column].type == SQUIRREL) {
+    exchange_cells(rows, next_row, next_column, row, column);
+
+    if(rows[next_row][next_column].breeding_period < 1) {
+      rows[row][column].breeding_period = wolf_breeding_period + 1;
+      rows[next_row][next_column].breeding_period = wolf_breeding_period + 1;
+      rows[row][column].type = WOLF;
+      rows[next_row][next_column].type = WOLF;
+      rows[row][column].starvation_period = wolf_starvation_period + 1;
     } else {
-      rows_copy[row][column].type = EMPTY;
+      rows[row][column].type = EMPTY;
     }
 
-    rows_copy[next_row][next_column].starvation_period = wolf_starvation_period + 1;
+    rows[next_row][next_column].starvation_period = wolf_starvation_period + 1;
 
     return;
   }
 
-  if(rows_copy[next_row][next_column].type == WOLF) {
-    exchange_cells(rows_copy, next_row, next_column, row, column);
+  if(rows[next_row][next_column].type == WOLF) {
+    exchange_cells(rows, next_row, next_column, row, column);
 
-    if(rows_copy[row][column].starvation_period > rows_copy[next_row][next_column].starvation_period) {
-      rows_copy[next_row][next_column].starvation_period = rows_copy[row][column].starvation_period;
-      rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
-    } else if (rows_copy[row][column].starvation_period == rows_copy[next_row][next_column].starvation_period) {
-      if(rows_copy[row][column].breeding_period > rows_copy[next_row][next_column].breeding_period) {
-	rows_copy[next_row][next_column].breeding_period = rows_copy[row][column].breeding_period;
+    if(rows[row][column].starvation_period > rows[next_row][next_column].starvation_period) {
+      rows[next_row][next_column].starvation_period = rows[row][column].starvation_period;
+      rows[next_row][next_column].breeding_period = rows[row][column].breeding_period;
+    } else if (rows[row][column].starvation_period == rows[next_row][next_column].starvation_period) {
+      if(rows[row][column].breeding_period > rows[next_row][next_column].breeding_period) {
+	rows[next_row][next_column].breeding_period = rows[row][column].breeding_period;
       }
     }
 		
-    if(rows_copy[next_row][next_column].breeding_period < 1) {
-      rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
-      rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
-      rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
-      rows_copy[row][column].type = WOLF;
-      rows_copy[next_row][next_column].type = WOLF;
+    if(rows[next_row][next_column].breeding_period < 1) {
+      rows[row][column].breeding_period = wolf_breeding_period + 1;
+      rows[row][column].starvation_period = wolf_starvation_period + 1;
+      rows[next_row][next_column].breeding_period = wolf_breeding_period + 1;
+      rows[row][column].type = WOLF;
+      rows[next_row][next_column].type = WOLF;
     } else {
-      rows_copy[row][column].type = EMPTY;
-      rows_copy[next_row][next_column].type = WOLF;
+      rows[row][column].type = EMPTY;
+      rows[next_row][next_column].type = WOLF;
     }
 		
     return;
   }
 
-  exchange_cells(rows_copy, next_row, next_column, row, column);
+  exchange_cells(rows, next_row, next_column, row, column);
 
-  if(rows_copy[next_row][next_column].breeding_period < 1) {
-    rows_copy[row][column].breeding_period = wolf_breeding_period + 1;
-    rows_copy[next_row][next_column].breeding_period = wolf_breeding_period + 1;
-    rows_copy[row][column].type = WOLF;
-    rows_copy[next_row][next_column].type = WOLF;
-    rows_copy[row][column].starvation_period = wolf_starvation_period + 1;
+  if(rows[next_row][next_column].breeding_period < 1) {
+    rows[row][column].breeding_period = wolf_breeding_period + 1;
+    rows[next_row][next_column].breeding_period = wolf_breeding_period + 1;
+    rows[row][column].type = WOLF;
+    rows[next_row][next_column].type = WOLF;
+    rows[row][column].starvation_period = wolf_starvation_period + 1;
   }
+
+  
+  if(id)
+    {
+      if(row = id*chunk + chunk - 1)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
+	}
+      if(row = id*chunk)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
+	}
+    }
+  else
+    {
+      if(row = chunk - 1)
+	{
+	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
+	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
+	}
+    }
+
 }
 
-/* process_sub_world(int redBlack)*/
-void process_sub_world(int redBlack) {
-  int i,k;
-  struct world * copy = (struct world *) malloc( sizeof(struct world) * side_size * side_size);
-  memcpy(copy, world, sizeof(struct world) * side_size * side_size);
-  struct world ** rows_copy = malloc(side_size * sizeof(struct world *));
-
-  for (i = 0; i < side_size; i++) {
-    rows_copy[i] = &copy[i*side_size];
-  }
-
-  for(i = 0; i < side_size; i++) {
+  /* process_sub_world(int redBlack)*/
+  void process_sub_world(int redBlack) {
+  int i,k, flag_sql, flag_wlf;
+  MPI_Status status_sql, status_wlf;
+  struct world pos_from_outside;
+  
+  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
     for(k = (i + redBlack) % 2; k < side_size; k += 2) {
-      if(rows_copy[i][k].type == EMPTY || rows_copy[i][k].type == TREE || rows_copy[i][k].type == ICE) { 
+      
+      MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
+      MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
+      
+      while(flag_sql || flag_wlf) {
+	if(flag_sql) {
+	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_sql.MPI_SOURCE, UPDSQL, MPI_COMM_WORLD, &status_sql);
+	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	} else {
+	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_wlf.MPI_SOURCE, UPDWLF, MPI_COMM_WORLD, &status_wlf);
+	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	}
+	
+	MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
+	MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
+      }
+      
+      if(rows[i][k].type == EMPTY || rows[i][k].type == TREE || rows[i][k].type == ICE) { 
 	continue;
-      } else if(rows_copy[i][k].type == SQUIRREL || rows_copy[i][k].type == TREEWSQUIRREL) { 
-	process_squirrel(i, k, rows_copy);
+      } else if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL) { 
+	process_squirrel(i, k, rows);
       } else { 
-	process_wolf(i, k, rows_copy);
+	process_wolf(i, k, rows);
       }
     }
   }
-
-  memcpy(world, copy, sizeof(struct world) * side_size * side_size);
+  
 }
 
 /* kill_wolves() : updates wolves starvation period */
@@ -431,7 +502,7 @@ void print_world_pos()
 /* main : function responsible for the main interaction of the program. */
 int main(int argc, char *argv[]) {
   char *file_name;
-  int n_generations,i, id, p;
+  int n_generations,i;
   FILE *file;
 
   int blocklens[2];
@@ -441,7 +512,7 @@ int main(int argc, char *argv[]) {
   MPI_Init (&argc, &argv);
 	 
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
-  MPI_Comm_size (MPI_COMM_WORLD, &p);
+  MPI_Comm_size (MPI_COMM_WORLD, &nprocs);
 
   if(argc == 6) {
     file_name = argv[1];
@@ -454,6 +525,7 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
     exit(-1);
   }
+
 
   if(!id) {
     file = fopen(file_name,"r");
@@ -469,9 +541,16 @@ int main(int argc, char *argv[]) {
     }
   }
 
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  MPI_Bcast(&side_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  chunk = (int)ceil(side_size / nprocs);
+
+  /* Define mpiworld datatype */
   /* One value of each type */
   blocklens[0] = 1;
-  blocklens[1] = 2;
+  blocklens[1] = 4;
 
   /* The base types */
   old_types[0] = MPI_CHAR;
@@ -486,8 +565,14 @@ int main(int argc, char *argv[]) {
 
   MPI_Type_struct( 2, blocklens, indices, old_types, &mpiworld );
   MPI_Type_commit( &mpiworld );
+  /* End of mpiworld datatype */
 
   MPI_Bcast(world, side_size*side_size, mpiworld, 0, MPI_COMM_WORLD);
+
+  rows = (struct world **) malloc(side_size * sizeof(struct world *));
+  for(i = 0; i < side_size; i++) {
+    rows[i] = &world[i * side_size];
+  }
 
   for (i = 0; i < n_generations; i++) {
     process_sub_world(RED);
@@ -495,6 +580,8 @@ int main(int argc, char *argv[]) {
 
     kill_wolves();
     update_breeding_period();
+
+    MPI_Barrier(MPI_COMM_WORLD);
   }
   
   if(!id)
