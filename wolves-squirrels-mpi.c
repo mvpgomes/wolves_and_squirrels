@@ -3,6 +3,7 @@
 #include <string.h>
 #include <mpi.h>
 #include <math.h>
+#include <stddef.h>
 
 /* Constants */
 #define EMPTY ' '
@@ -301,7 +302,7 @@ void process_squirrel(int row, int column, struct world **rows) {
 
   if(id)
     {
-      if(row = id*chunk + chunk - 1)
+      if( row = id*chunk + chunk - 1 && id != nprocs - 1 )
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
@@ -400,7 +401,7 @@ void process_wolf(int row, int column, struct world **rows) {
   
   if(id)
     {
-      if(row = id*chunk + chunk - 1)
+      if( row = id*chunk + chunk - 1 && id != nprocs - 1 )
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
@@ -422,15 +423,15 @@ void process_wolf(int row, int column, struct world **rows) {
 
 }
 
-  /* process_sub_world(int redBlack)*/
-  void process_sub_world(int redBlack) {
+/* process_sub_world(int redBlack)*/
+void process_sub_world(int redBlack) {
   int i,k, flag_sql, flag_wlf;
   MPI_Status status_sql, status_wlf;
   struct world pos_from_outside;
   
   for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
     for(k = (i + redBlack) % 2; k < side_size; k += 2) {
-      
+
       MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
       MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
       
@@ -446,6 +447,7 @@ void process_wolf(int row, int column, struct world **rows) {
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
       }
+
       
       if(rows[i][k].type == EMPTY || rows[i][k].type == TREE || rows[i][k].type == ICE) { 
 	continue;
@@ -505,9 +507,10 @@ int main(int argc, char *argv[]) {
   int n_generations,i;
   FILE *file;
 
-  int blocklens[2];
-  MPI_Aint indices[2], extent;
-  MPI_Datatype old_types[2];
+  int blocklens[5] = {1, 1, 1, 1, 1};
+  MPI_Aint indices[5];
+  MPI_Datatype old_types[5] = {MPI_CHAR, MPI_INT, MPI_INT, MPI_INT, MPI_INT};
+  MPI_Status status;
 
   MPI_Init (&argc, &argv);
 	 
@@ -525,7 +528,6 @@ int main(int argc, char *argv[]) {
     MPI_Finalize();
     exit(-1);
   }
-
 
   if(!id) {
     file = fopen(file_name,"r");
@@ -547,27 +549,27 @@ int main(int argc, char *argv[]) {
   MPI_Bcast(&side_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
   chunk = (int)ceil(side_size / nprocs);
 
+  if(id)
+    world = (struct world *) malloc(side_size * side_size * sizeof(struct world ));
+
+
   /* Define mpiworld datatype */
-  /* One value of each type */
-  blocklens[0] = 1;
-  blocklens[1] = 4;
-
-  /* The base types */
-  old_types[0] = MPI_CHAR;
-  old_types[1] = MPI_INT;
-
-  /* The locations of each element */
-  MPI_Type_extent(MPI_CHAR, &extent);
 
   /* Make relative */
-  indices[0] = 0;
-  indices[1] = extent;
+  indices[0] = offsetof(struct world, type);
+  indices[1] = offsetof(struct world, row);
+  indices[2] = offsetof(struct world, column);
+  indices[3] = offsetof(struct world, breeding_period);
+  indices[4] = offsetof(struct world, starvation_period);
 
-  MPI_Type_struct( 2, blocklens, indices, old_types, &mpiworld );
+  MPI_Type_create_struct( 5, blocklens, indices, old_types, &mpiworld );
   MPI_Type_commit( &mpiworld );
   /* End of mpiworld datatype */
 
   MPI_Bcast(world, side_size*side_size, mpiworld, 0, MPI_COMM_WORLD);
+
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   rows = (struct world **) malloc(side_size * sizeof(struct world *));
   for(i = 0; i < side_size; i++) {
@@ -577,6 +579,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < n_generations; i++) {
     process_sub_world(RED);
     process_sub_world(BLACK);
+    printf("iteration %d on %d\n", i, id);
 
     kill_wolves();
     update_breeding_period();
