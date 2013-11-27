@@ -302,12 +302,12 @@ void process_squirrel(int row, int column, struct world **rows) {
 
   if(id)
     {
-      if( row = id*chunk + chunk - 1 && id != nprocs - 1 )
+      if( row == id*chunk + chunk - 1 && id != nprocs - 1 )
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
 	}
-      if(row = id*chunk)
+      if(row == id*chunk || next_row == id*chunk)
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
@@ -315,7 +315,7 @@ void process_squirrel(int row, int column, struct world **rows) {
     }
   else
     {
-      if(row = chunk - 1)
+      if(row == chunk - 1 || next_row == chunk - 1)
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
@@ -401,12 +401,12 @@ void process_wolf(int row, int column, struct world **rows) {
   
   if(id)
     {
-      if( row = id*chunk + chunk - 1 && id != nprocs - 1 )
+      if( row == id*chunk + chunk - 1 && id != nprocs - 1 )
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
 	}
-      if(row = id*chunk)
+      if(row == id*chunk || next_row == id*chunk)
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
@@ -414,7 +414,7 @@ void process_wolf(int row, int column, struct world **rows) {
     }
   else
     {
-      if(row = chunk - 1)
+      if(row == chunk - 1 || next_row == chunk - 1)
 	{
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
 	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
@@ -436,16 +436,25 @@ void process_sub_world(int redBlack) {
       MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
       
       while(flag_sql || flag_wlf) {
+	printf("proc %d is receiving a squirrel:%d ; wolf:%d\n", id, flag_sql, flag_wlf);
+
 	if(flag_sql) {
 	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_sql.MPI_SOURCE, UPDSQL, MPI_COMM_WORLD, &status_sql);
 	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	  flag_sql = 0;
+	  	printf("proc %d received from %d a squirrel\n", id, status_sql.MPI_SOURCE);
 	} else {
 	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_wlf.MPI_SOURCE, UPDWLF, MPI_COMM_WORLD, &status_wlf);
 	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	  flag_wlf = 0;
+	  	printf("proc %d received from %d a wolf\n", id, status_wlf.MPI_SOURCE);
 	}
+
 	
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
+
+
       }
 
       
@@ -465,7 +474,7 @@ void process_sub_world(int redBlack) {
 void kill_wolves() {
   int i, k;
 
-  for(i = 0; i < side_size; i++) {
+  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
     for(k = 0; k < side_size ;k++) {
       if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 0) {
 	rows[i][k].type = EMPTY;
@@ -478,7 +487,7 @@ void kill_wolves() {
 void update_breeding_period() {
   int i, k;
 
-  for(i = 0; i < side_size; i++) {
+  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
     for(k = 0; k < side_size; k++) {
       if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL || rows[i][k].type == WOLF)
 	rows[i][k].breeding_period--;
@@ -568,8 +577,6 @@ int main(int argc, char *argv[]) {
 
   MPI_Bcast(world, side_size*side_size, mpiworld, 0, MPI_COMM_WORLD);
 
-
-  MPI_Barrier(MPI_COMM_WORLD);
 
   rows = (struct world **) malloc(side_size * sizeof(struct world *));
   for(i = 0; i < side_size; i++) {
