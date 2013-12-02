@@ -327,12 +327,13 @@ void process_squirrel(int row, int column, struct world **rows) {
     }*/
 }
 
+/* process_new_squirrel(struct world *recv_pos) */
 void process_new_squirrel(struct world *recv_pos) {
 
   if(rows[recv_pos->row][recv_pos->column].type == SQUIRREL) {
 
     if(rows[recv_pos->row][recv_pos->column].breeding_period < recv_pos->breeding_period) {
-      rows[recv_pos->row][recv_pos->column] = recv_pos;
+      rows[recv_pos->row][recv_pos->column] = *recv_pos;
       rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
     }
 		
@@ -352,7 +353,7 @@ void process_new_squirrel(struct world *recv_pos) {
 
   if(rows[recv_pos->row][recv_pos->column].type == TREE) {
 
-    rows[recv_pos->row][recv_pos->column] = recv_pos;
+    rows[recv_pos->row][recv_pos->column] = *recv_pos;
     rows[recv_pos->row][recv_pos->column].type = TREEWSQUIRREL;
 		
     if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
@@ -362,9 +363,9 @@ void process_new_squirrel(struct world *recv_pos) {
     return;
   }
 	
-  if(recv_pos.type == TREEWSQUIRREL && rows[recv_pos->row][recv_pos->column].type == EMPTY) {
+  if(recv_pos->type == TREEWSQUIRREL && rows[recv_pos->row][recv_pos->column].type == EMPTY) {
 
-    rows[recv_pos->row][recv_pos->column] = recv_pos;
+    rows[recv_pos->row][recv_pos->column] = *recv_pos;
     rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
 		
     if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
@@ -374,34 +375,34 @@ void process_new_squirrel(struct world *recv_pos) {
     return;
   }
 
-  rows[recv_pos->row][recv_pos->column] = recv_pos;
+  rows[recv_pos->row][recv_pos->column] = *recv_pos;
   rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
   if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
     rows[recv_pos->row][recv_pos->column].breeding_period = squirrel_breeding_period + 1;
   }
 }
-
+/* process_new_wolf(struct world *recv_pos) */
 void process_new_wolf(struct world *recv_pos) {
 
   if(rows[recv_pos->row][recv_pos->column].type == SQUIRREL) {
-    rows[recv_pos->row][recv_pos->column] = recv_pos;
+    rows[recv_pos->row][recv_pos->column] = *recv_pos;
 
     if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
       rows[recv_pos->row][recv_pos->column].breeding_period = wolf_breeding_period + 1;
     }
 
-    rows[next_row][next_column].starvation_period = wolf_starvation_period + 1;
+    rows[recv_pos->row][recv_pos->column].starvation_period = wolf_starvation_period + 1;
 
     return;
   }
 
   if(rows[recv_pos->row][recv_pos->column].type == WOLF) {
 
-    if(rows[recv_pos->row][recv_pos->column].starvation_period < recv_pos.starvation_period) {
-      rows[recv_pos->row][recv_pos->column] = recv_pos;
-    } else if (rows[recv_pos->row][recv_pos->column].starvation_period == recv_pos.starvation_period) {
-      if(rows[recv_pos->row][recv_pos->column].breeding_period < recv_pos.breeding_period) {
-	rows[recv_pos->row][recv_pos->column] = recv_pos;
+    if(rows[recv_pos->row][recv_pos->column].starvation_period < recv_pos->starvation_period) {
+      rows[recv_pos->row][recv_pos->column] = *recv_pos;
+    } else if (rows[recv_pos->row][recv_pos->column].starvation_period == recv_pos->starvation_period) {
+      if(rows[recv_pos->row][recv_pos->column].breeding_period < recv_pos->breeding_period) {
+	rows[recv_pos->row][recv_pos->column] = *recv_pos;
       }
     }
 		
@@ -414,7 +415,7 @@ void process_new_wolf(struct world *recv_pos) {
     return;
   }
 
-  rows[recv_pos->row][recv_pos->column] = recv_pos;
+  rows[recv_pos->row][recv_pos->column] = *recv_pos;
   if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
     rows[recv_pos->row][recv_pos->column].breeding_period = wolf_breeding_period + 1;
   }
