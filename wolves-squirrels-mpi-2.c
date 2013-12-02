@@ -211,8 +211,8 @@ void process_squirrel(int row, int column, struct world **rows) {
   int p, next_row, next_column;
   struct position* next_pos;
   struct world aux_cell;
-  MPI_Request request_old_pos, request_new_pos;
-  MPI_Status old_pos_status, new_pos_status;
+  MPI_Request request_pos;
+  MPI_Status pos_status;
 
   struct list_pos* list = compute_squirrel_movement(row, column, rows);
 
@@ -226,6 +226,24 @@ void process_squirrel(int row, int column, struct world **rows) {
   next_row = next_pos->row;
   next_column = next_pos->column;
 
+  if( next_row == id*chunk + chunk )
+    {
+      rows[row][column].row = next_row;
+      rows[row][column].column = next_column;
+      MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
+      MPI_Wait(&request_pos, &pos_status);
+      rows[row][column].type = EMPTY;
+      return;
+    }
+  if(next_row == id*chunk - 1)
+    {
+      rows[row][column].row = next_row;
+      rows[row][column].column = next_column;
+      MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
+      MPI_Wait(&request_pos, &pos_status);
+      rows[row][column].type = EMPTY;
+      return;
+    }
   
   if(rows[next_row][next_column].type == SQUIRREL) {
     exchange_cells(rows, next_row, next_column, row, column);
@@ -301,33 +319,6 @@ void process_squirrel(int row, int column, struct world **rows) {
     rows[next_row][next_column].type = SQUIRREL;
   }
 
-  if(id)
-    {
-      if( row == id*chunk + chunk - 1 && id != nprocs - 1 )
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-      if(row == id*chunk || next_row == id*chunk)
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-    }
-  else
-    {
-      if(row == chunk - 1 || next_row == chunk - 1)
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-    }
   /* Verifies the request status
   if(request_old_pos == MPI_REQUEST_NULL){
     printf("The request from proc %d for old_pos is MPI_REQUEST_NULL\n", id);
@@ -336,13 +327,106 @@ void process_squirrel(int row, int column, struct world **rows) {
     }*/
 }
 
+void process_new_squirrel(struct world *recv_pos) {
+
+  if(rows[recv_pos->row][recv_pos->column].type == SQUIRREL) {
+
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < recv_pos->breeding_period) {
+      rows[recv_pos->row][recv_pos->column] = recv_pos;
+      rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
+    }
+		
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+      rows[recv_pos->row][recv_pos->column].breeding_period = squirrel_breeding_period + 1;
+    }
+		
+    return;
+  }
+	
+  if(rows[recv_pos->row][recv_pos->column].type == WOLF) {
+	
+    rows[recv_pos->row][recv_pos->column].starvation_period = wolf_starvation_period + 1;
+		
+    return;
+  }
+
+  if(rows[recv_pos->row][recv_pos->column].type == TREE) {
+
+    rows[recv_pos->row][recv_pos->column] = recv_pos;
+    rows[recv_pos->row][recv_pos->column].type = TREEWSQUIRREL;
+		
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+      rows[recv_pos->row][recv_pos->column].breeding_period = squirrel_breeding_period + 1;
+    }
+
+    return;
+  }
+	
+  if(recv_pos.type == TREEWSQUIRREL && rows[recv_pos->row][recv_pos->column].type == EMPTY) {
+
+    rows[recv_pos->row][recv_pos->column] = recv_pos;
+    rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
+		
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+      rows[recv_pos->row][recv_pos->column].breeding_period = squirrel_breeding_period + 1;
+    }
+
+    return;
+  }
+
+  rows[recv_pos->row][recv_pos->column] = recv_pos;
+  rows[recv_pos->row][recv_pos->column].type = SQUIRREL;
+  if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+    rows[recv_pos->row][recv_pos->column].breeding_period = squirrel_breeding_period + 1;
+  }
+}
+
+void process_new_wolf(struct world *recv_pos) {
+
+  if(rows[recv_pos->row][recv_pos->column].type == SQUIRREL) {
+    rows[recv_pos->row][recv_pos->column] = recv_pos;
+
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+      rows[recv_pos->row][recv_pos->column].breeding_period = wolf_breeding_period + 1;
+    }
+
+    rows[next_row][next_column].starvation_period = wolf_starvation_period + 1;
+
+    return;
+  }
+
+  if(rows[recv_pos->row][recv_pos->column].type == WOLF) {
+
+    if(rows[recv_pos->row][recv_pos->column].starvation_period < recv_pos.starvation_period) {
+      rows[recv_pos->row][recv_pos->column] = recv_pos;
+    } else if (rows[recv_pos->row][recv_pos->column].starvation_period == recv_pos.starvation_period) {
+      if(rows[recv_pos->row][recv_pos->column].breeding_period < recv_pos.breeding_period) {
+	rows[recv_pos->row][recv_pos->column] = recv_pos;
+      }
+    }
+		
+    if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+      rows[recv_pos->row][recv_pos->column].breeding_period = wolf_breeding_period + 1;
+    }
+
+    rows[recv_pos->row][recv_pos->column].starvation_period = wolf_starvation_period + 1;
+
+    return;
+  }
+
+  rows[recv_pos->row][recv_pos->column] = recv_pos;
+  if(rows[recv_pos->row][recv_pos->column].breeding_period < 1) {
+    rows[recv_pos->row][recv_pos->column].breeding_period = wolf_breeding_period + 1;
+  }
+}
+
 /* process_wolf(int row, int column, struct world **rows) */
 void process_wolf(int row, int column, struct world **rows) {
   int p, next_row, next_column, nextid = id;
   struct position* next_pos;
   struct world aux_cell;
-  MPI_Request request_old_pos, request_new_pos;
-  MPI_Status old_pos_status, new_pos_status;
+  MPI_Request request_pos;
+  MPI_Status pos_status;
 		
   struct list_pos* list = compute_wolf_movement(row, column, rows);
 
@@ -356,6 +440,24 @@ void process_wolf(int row, int column, struct world **rows) {
   next_row = next_pos->row;
   next_column = next_pos->column;
 
+  if( next_row == id*chunk + chunk )
+    {
+      rows[row][column].row = next_row;
+      rows[row][column].column = next_column;
+      MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
+      MPI_Wait(&request_pos, &pos_status);
+      rows[row][column].type = EMPTY;
+      return;
+    }
+  if(next_row == id*chunk - 1)
+    {
+      rows[row][column].row = next_row;
+      rows[row][column].column = next_column;
+      MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
+      MPI_Wait(&request_pos, &pos_status);
+      rows[row][column].type = EMPTY;
+      return;
+    }
 
   if(rows[next_row][next_column].type == SQUIRREL) {
     exchange_cells(rows, next_row, next_column, row, column);
@@ -411,34 +513,6 @@ void process_wolf(int row, int column, struct world **rows) {
     rows[row][column].starvation_period = wolf_starvation_period + 1;
   }
 
-  
-  if(id)
-    {
-      if( row == id*chunk + chunk - 1 && id != nprocs - 1 )
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-      if(row == id*chunk || next_row == id*chunk)
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-    }
-  else
-    {
-      if(row == chunk - 1 || next_row == chunk - 1)
-	{
-	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_old_pos);
-	  MPI_Wait(&request_old_pos, &old_pos_status);
-	  MPI_Isend(&rows[next_row][next_column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_new_pos);
-	  MPI_Wait(&request_new_pos, &new_pos_status);
-	}
-    }
   /* Verifies the request status
   if(request_old_pos == MPI_REQUEST_NULL){
     printf("The request from proc %d for old_pos is MPI_REQUEST_NULL\n", id);
@@ -465,12 +539,12 @@ void process_sub_world(int redBlack) {
 
 	if(flag_sql) {
 	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_sql.MPI_SOURCE, UPDSQL, MPI_COMM_WORLD, &status_sql);
-	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	  process_new_squirrel(&pos_from_outside);
 	  flag_sql = 0;
 	  //printf("proc %d received from %d a squirrel\n", id, status_sql.MPI_SOURCE);
 	} else {
 	  MPI_Recv(&pos_from_outside, 1, mpiworld, status_wlf.MPI_SOURCE, UPDWLF, MPI_COMM_WORLD, &status_wlf);
-	  rows[pos_from_outside.row][pos_from_outside.column] = pos_from_outside;
+	  process_new_wolf(&pos_from_outside);
 	  flag_wlf = 0;
 	  //printf("proc %d received from %d a wolf\n", id, status_wlf.MPI_SOURCE);
 	}
