@@ -318,13 +318,6 @@ void process_squirrel(int row, int column, struct world **rows) {
     rows[row][column].type = SQUIRREL;
     rows[next_row][next_column].type = SQUIRREL;
   }
-
-  /* Verifies the request status
-  if(request_old_pos == MPI_REQUEST_NULL){
-    printf("The request from proc %d for old_pos is MPI_REQUEST_NULL\n", id);
-  } else if(request_new_pos == MPI_REQUEST_NULL){
-    printf("The request from proc %d for new_pos is MPI_REQUEST_NULL\n", id);
-    }*/
 }
 
 /* process_new_squirrel(struct world *recv_pos) */
@@ -513,14 +506,6 @@ void process_wolf(int row, int column, struct world **rows) {
     rows[next_row][next_column].type = WOLF;
     rows[row][column].starvation_period = wolf_starvation_period + 1;
   }
-
-  /* Verifies the request status
-  if(request_old_pos == MPI_REQUEST_NULL){
-    printf("The request from proc %d for old_pos is MPI_REQUEST_NULL\n", id);
-  } else if(request_new_pos == MPI_REQUEST_NULL){
-    printf("The request from proc %d for new_pos is MPI_REQUEST_NULL\n", id);
-  }
-  */
 }
 
 /* process_sub_world(int redBlack)*/
@@ -686,13 +671,12 @@ int main(int argc, char *argv[]) {
 
   for (i = 0; i < n_generations; i++) {
     process_sub_world(RED);
+    MPI_Barrier(MPI_COMM_WORLD);
     process_sub_world(BLACK);
     //printf("iteration %d on %d\n", i, id);
-
+    MPI_Barrier(MPI_COMM_WORLD);
     kill_wolves();
     update_breeding_period();
-
-    MPI_Barrier(MPI_COMM_WORLD);
   }
   
   if(!id)
