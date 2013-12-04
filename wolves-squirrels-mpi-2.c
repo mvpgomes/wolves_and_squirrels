@@ -235,7 +235,7 @@ void process_squirrel(int row, int column, struct world **rows) {
       rows[row][column].type = EMPTY;
       return;
     }
-  if(next_row == id*chunk - 1)
+  if( next_row == id*chunk - 1)
     {
       rows[row][column].row = next_row;
       rows[row][column].column = next_column;
@@ -443,6 +443,7 @@ void process_wolf(int row, int column, struct world **rows) {
       rows[row][column].type = EMPTY;
       return;
     }
+  
   if(next_row == id*chunk - 1)
     {
       rows[row][column].row = next_row;
@@ -514,8 +515,10 @@ void process_sub_world(int redBlack) {
   MPI_Status status_sql, status_wlf;
   struct world pos_from_outside;
   
-  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
+  for(i = id*chunk; i < (id*chunk + chunk) && i < side_size; i++) {
     for(k = (i + redBlack) % 2; k < side_size; k += 2) {
+      
+      //printf("O processo activo é o %d\n.", id);
 
       MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
       MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
@@ -535,14 +538,11 @@ void process_sub_world(int redBlack) {
 	  //printf("proc %d received from %d a wolf\n", id, status_wlf.MPI_SOURCE);
 	}
 
-	
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDSQL, MPI_COMM_WORLD, &flag_sql, &status_sql);
 	MPI_Iprobe(MPI_ANY_SOURCE, UPDWLF, MPI_COMM_WORLD, &flag_wlf, &status_wlf);
 
-
       }
 
-      
       if(rows[i][k].type == EMPTY || rows[i][k].type == TREE || rows[i][k].type == ICE) { 
 	continue;
       } else if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL) { 
@@ -552,14 +552,12 @@ void process_sub_world(int redBlack) {
       }
     }
   }
-  
 }
 
 /* kill_wolves() : updates wolves starvation period */
 void kill_wolves() {
   int i, k;
-
-  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
+  for(i = id*chunk; i < (id*chunk + chunk) && i < side_size; i++) {
     for(k = 0; k < side_size ;k++) {
       if(rows[i][k].type == WOLF && --rows[i][k].starvation_period < 0) {
 	rows[i][k].type = EMPTY;
@@ -572,7 +570,7 @@ void kill_wolves() {
 void update_breeding_period() {
   int i, k;
 
-  for(i = id*chunk; i < (id*chunk + chunk) || i < side_size; i++) {
+  for(i = id*chunk; i < (id*chunk + chunk) && i < side_size; i++) {
     for(k = 0; k < side_size; k++) {
       if(rows[i][k].type == SQUIRREL || rows[i][k].type == TREEWSQUIRREL || rows[i][k].type == WOLF)
 	rows[i][k].breeding_period--;
@@ -606,7 +604,7 @@ int main(int argc, char *argv[]) {
   MPI_Datatype old_types[5] = {MPI_CHAR, MPI_INT, MPI_INT, MPI_INT, MPI_INT};
   MPI_Status status;
 
-  MPI_Init (&argc, &argv);
+  MPI_Init(&argc, &argv);
 	 
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
   MPI_Comm_size (MPI_COMM_WORLD, &nprocs);
@@ -641,9 +639,8 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   MPI_Bcast(&side_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  chunk = (int)ceil(side_size / nprocs);
-  
-  // Testar com apenas 1 processo e ver o que acontece
+  chunk = ceil((double)side_size / (double)nprocs);
+
   if(id)
     world = (struct world *) malloc(side_size * side_size * sizeof(struct world ));
 
@@ -678,10 +675,12 @@ int main(int argc, char *argv[]) {
     kill_wolves();
     update_breeding_period();
   }
-  
+
   if(!id)
     print_world_pos();
   
+  MPI_Type_free(&mpiworld);
   MPI_Finalize();
+
   return 0;
 }
