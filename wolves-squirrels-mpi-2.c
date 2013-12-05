@@ -232,7 +232,10 @@ void process_squirrel(int row, int column, struct world **rows) {
       rows[row][column].column = next_column;
       MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
       MPI_Wait(&request_pos, &pos_status);
-      rows[row][column].type = EMPTY;
+      if( !(rows[row][column].breeding_period < 1) )
+        {
+          rows[row][column].type = EMPTY;
+        }
       return;
     }
   if( next_row == id*chunk - 1)
@@ -241,7 +244,10 @@ void process_squirrel(int row, int column, struct world **rows) {
       rows[row][column].column = next_column;
       MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
       MPI_Wait(&request_pos, &pos_status);
-      rows[row][column].type = EMPTY;
+      if( !(rows[row][column].breeding_period < 1) )
+        {
+          rows[row][column].type = EMPTY;
+        }
       return;
     }
   
@@ -440,7 +446,10 @@ void process_wolf(int row, int column, struct world **rows) {
       rows[row][column].column = next_column;
       MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
       MPI_Wait(&request_pos, &pos_status);
-      rows[row][column].type = EMPTY;
+      if( !(rows[row][column].breeding_period < 1) )
+        {
+          rows[row][column].type = EMPTY;
+        }
       return;
     }
   
@@ -450,7 +459,10 @@ void process_wolf(int row, int column, struct world **rows) {
       rows[row][column].column = next_column;
       MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
       MPI_Wait(&request_pos, &pos_status);
-      rows[row][column].type = EMPTY;
+      if( !(rows[row][column].breeding_period < 1) )
+        {
+          rows[row][column].type = EMPTY;
+        }
       return;
     }
 
