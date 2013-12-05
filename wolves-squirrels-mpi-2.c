@@ -690,8 +690,6 @@ int main(int argc, char *argv[]) {
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  struct world *send_buff = &world[id*chunk*side_size];
-
   // Send processed prositions to root
 
   // Number of positions to send
@@ -711,6 +709,12 @@ int main(int argc, char *argv[]) {
   // If, for some reason, 1 process doesn't process anything and the send_count is negative, define as 0
   if (send_count < 0) {
     send_count = 0;
+  }
+
+  struct world *send_buff;
+ 
+  if (send_count = 0) {
+    send_buff = &world[id*chunk*side_size];
   }
 
   // Gather all parts of the matrix on the root process
