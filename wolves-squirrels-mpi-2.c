@@ -591,7 +591,7 @@ void update_breeding_period() {
 }
 
 /* print_world_pos() : function that prints a list in the form (row,column,type) with the objects on the world map */
-void print_world_pos()
+void print_world_pos(struct world *to_print)
 {
   int i, k;
 
@@ -599,8 +599,8 @@ void print_world_pos()
 	{
 	  for(k = 0; k < side_size; k++)
 	{
-	  if(rows[i][k].type != EMPTY)
-		printf("%d %d %c\n", i, k, rows[i][k].type);
+	  if(to_print[i*side_size+k].type != EMPTY)
+		printf("%d %d %c\n", i, k, to_print[i*side_size+k].type);
 	}
 	}
 }
@@ -713,16 +713,21 @@ int main(int argc, char *argv[]) {
 
   struct world *send_buff;
  
-  if (send_count = 0) {
+  if (send_count != 0) {
     send_buff = &world[id*chunk*side_size];
+  } else {
+    send_buff = world;
   }
 
-  // Gather all parts of the matrix on the root process
-  MPI_Gather(send_buff, send_count, mpiworld, world, side_size*side_size, mpiworld, 0, MPI_COMM_WORLD);
+  struct world *recv_buff = (struct world *) malloc (side_size * side_size * sizeof(struct world));
 
-  if(!id)
-	print_world_pos();
-  
+  // Gather all parts of the matrix on the root process
+  MPI_Gather(send_buff, send_count, mpiworld, recv_buff, side_size*chunk, mpiworld, 0, MPI_COMM_WORLD);
+
+  if(!id) {
+   print_world_pos(recv_buff);
+  }
+
   MPI_Type_free(&mpiworld);
   MPI_Finalize();
   return 0;
