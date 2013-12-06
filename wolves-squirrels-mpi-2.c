@@ -231,7 +231,6 @@ void process_squirrel(int row, int column, struct world **rows) {
 	  rows[row][column].row = next_row;
 	  rows[row][column].column = next_column;
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDSQL, MPI_COMM_WORLD, &request_pos);
-	  MPI_Wait(&request_pos, &pos_status);
 	  if( !(rows[row][column].breeding_period < 1) )
 		{
 		  rows[row][column].type = EMPTY;
@@ -245,7 +244,6 @@ void process_squirrel(int row, int column, struct world **rows) {
 	  rows[row][column].row = next_row;
 	  rows[row][column].column = next_column;
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDSQL, MPI_COMM_WORLD, &request_pos);
-	  MPI_Wait(&request_pos, &pos_status);
 	  if( !(rows[row][column].breeding_period < 1) )
 		{
 		  rows[row][column].type = EMPTY;
@@ -449,7 +447,6 @@ void process_wolf(int row, int column, struct world **rows) {
 	  rows[row][column].row = next_row;
 	  rows[row][column].column = next_column;
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id + 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
-	  MPI_Wait(&request_pos, &pos_status);
 	  if( !(rows[row][column].breeding_period < 1) )
 		{
 		  rows[row][column].type = EMPTY;
@@ -464,7 +461,6 @@ void process_wolf(int row, int column, struct world **rows) {
 	  rows[row][column].row = next_row;
 	  rows[row][column].column = next_column;
 	  MPI_Isend(&rows[row][column], 1, mpiworld, id - 1, UPDWLF, MPI_COMM_WORLD, &request_pos);
-	  MPI_Wait(&request_pos, &pos_status);
 	  if( !(rows[row][column].breeding_period < 1) )
 		{
 		  rows[row][column].type = EMPTY;
@@ -617,6 +613,7 @@ void print_world_pos(struct world *to_print)
 int main(int argc, char *argv[]) {
   char *file_name;
   int n_generations,i;
+  double start, endtime;
   FILE *file;
 
   int blocklens[5] = {1, 1, 1, 1, 1};
@@ -628,6 +625,9 @@ int main(int argc, char *argv[]) {
 	 
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
   MPI_Comm_size (MPI_COMM_WORLD, &nprocs);
+
+  MPI_Barrier (MPI_COMM_WORLD);
+  start = MPI_Wtime();
 
   if(argc == 6) {
 	file_name = argv[1];
@@ -732,8 +732,12 @@ int main(int argc, char *argv[]) {
   // Gather all parts of the matrix on the root process
   MPI_Gather(send_buff, send_count, mpiworld, recv_buff, side_size*chunk, mpiworld, 0, MPI_COMM_WORLD);
 
+  MPI_Barrier (MPI_COMM_WORLD);
+  endtime = MPI_Wtime();
+
   if(!id) {
    print_world_pos(recv_buff);
+   printf("Run time = %.2f\n", endtime-start);
   }
 
   MPI_Type_free(&mpiworld);
